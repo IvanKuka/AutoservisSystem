@@ -1,0 +1,90 @@
+﻿@using AutoservisSystem.Shared.Models
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<div class="panel @(Collapsed ? "collapse": "" ) ">
+    @if (ordersParts != null && parts != null)
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Názov</th>
+                    <th>Počet ks</th>
+                    <th>Cena za ks</th>
+                    <th>Celková cena</th>
+                    <th>Značka</th>
+                    <th>Dodávateľ</th>
+                </tr>
+            </thead>
+                <tbody>
+                    @foreach (var item in ordersParts.Keys)
+                    {
+                        var part = parts.Where(p => p.PartId == item).FirstOrDefault();
+                    <tr>
+                        <td>
+                            @part.Name
+                        </td>
+                        <td>
+                            @ordersParts[item].Pieces ks
+                        </td>
+                        <td>
+                            @part.Price €
+                        </td>
+                        <td>
+                            @(part.Price * ordersParts[item].Pieces) €
+                        </td>
+                        <td>
+                            @part.Brand
+                        </td>
+                        <td>
+                            @part.Supplier
+                        </td>
+                    </tr>
+                    }
+                </tbody>
+            </table>
+            
+    }
+
+    </div>
+
+@code { 
+    [Parameter]
+    public bool Collapsed { get; set; } = true; // hide by default
+    [Parameter]
+    public int OrderId { get; set; }
+
+    Dictionary<int,OrdersPart> ordersParts;
+    List<Part> parts = new List<Part>();
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private void CallLoadData()
+    {
+        Task.Run(async () =>
+        {
+            await LoadData();
+        });
+    }
+
+    protected async Task LoadData()
+    {
+        ordersParts = await Http.GetFromJsonAsync<Dictionary<int, OrdersPart>>("api/OrdersParts/orderId/" + OrderId);
+        foreach(var item in ordersParts.Keys)
+        {
+            parts.Add(await Http.GetJsonAsync<Part>("api/Parts/" + item));
+        }
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        
+    }
+ }
+

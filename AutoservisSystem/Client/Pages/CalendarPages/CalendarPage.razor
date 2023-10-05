@@ -1,0 +1,356 @@
+﻿@page "/calendarPage"
+@using AutoservisSystem.Shared
+@using AutoservisSystem.Shared.Models
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+
+<div class="row">
+    <!-- cast kalendar-->
+    <div class="col-sm-12 col-md-12 col-lg-9" style="float:left">
+        <div class="calendar">
+            <div class="row">
+                <div class="col-sm-12 col-lg-2">
+                    <label class="date-names" for="year">Rok</label>
+                    <select class="fluent-input" @onchange="UpdateCalendar">
+                        @for (int i = 0; i <= DateTime.Now.AddYears(2).Year - 2021; i++)
+                        {
+                            <option value="@(2021 + i)">@(2021 + i)</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-sm-12 col-lg-2">
+                    <label class="date-names" for="month">Mesiac</label>
+                    <select name="" id="" class="fluent-input" @onchange="UpdateCalendar">
+                        @if (month == 1)
+                        {
+                            RefreshCalendar();
+                            <option value="1" selected>Január</option>
+                        }
+                        else
+                        {
+                            <option value="1">Január</option>
+                        }
+                        @if (month == 2)
+                        {
+                            RefreshCalendar();
+                            <option value="2" selected>Február</option>
+                        }
+                        else
+                        {
+                            <option value="2">Február</option>
+                        }
+                        @if (month == 3)
+                        {
+                            RefreshCalendar();
+                            <option value="3" selected>Marec</option>
+                        }
+                        else
+                        {
+                            <option value="3">Marec</option>
+                        }
+                        @if (month == 4)
+                        {
+                            RefreshCalendar();
+                            <option value="4" selected>Apríl</option>
+                        }
+                        else
+                        {
+                            <option value="4">Apríl</option>
+                        }
+                        @if (month == 5)
+                        {
+                            RefreshCalendar();
+                            <option value="5" selected>Máj</option>
+                        }
+                        else
+                        {
+                            <option value="5">Máj</option>
+                        }
+                        @if (month == 6)
+                        {
+                            RefreshCalendar();
+                            <option value="6" selected>Jún</option>
+                        }
+                        else
+                        {
+                            <option value="6">Jún</option>
+                        }
+                        @if (month == 7)
+                        {
+                            RefreshCalendar();
+                            <option value="7" selected>Júl</option>
+                        }
+                        else
+                        {
+                            <option value="7">Júl</option>
+                        }
+                        @if (month == 8)
+                        {
+                            RefreshCalendar();
+                            <option value="8" selected>August</option>
+                        }
+                        else
+                        {
+                            <option value="8">August</option>
+                        }
+                        @if (month == 9)
+                        {
+                            RefreshCalendar();
+                            <option value="9" selected>September</option>
+                        }
+                        else
+                        {
+                            <option value="9">September</option>
+                        }
+                        @if (month == 10)
+                        {
+                            RefreshCalendar();
+                            <option value="10" selected>Október</option>
+                        }
+                        else
+                        {
+                            <option value="10">Október</option>
+                        }
+                        @if (month == 11)
+                        {
+                            RefreshCalendar();
+                            <option value="11" selected>November</option>
+                        }
+                        else
+                        {
+                            <option value="11">November</option>
+                        }
+                        @if (month == 12)
+                        {
+                            RefreshCalendar();
+                            <option value="12" selected>December</option>
+                        }
+                        else
+                        {
+                            <option value="12">December</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <table class="calendar-table">
+                <thead>
+                    <tr>
+                        <td>Po</td>
+                        <td>Ut</td>
+                        <td>St</td>
+                        <td>Št</td>
+                        <td>Pi</td>
+                        <td>So</td>
+                        <td>Ne</td>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int row = 0; row < rowsCount; row++)
+                    {
+                        <tr>
+                            @foreach (var day in days.Skip(row * 7).Take(7))
+                            {
+                                <td>
+                                    @{
+                                        string holidayDay;
+                                        string currentDayClass = day.Date == DateTime.Now.Date ? "current-day" : "";
+                                        string selectedDayClass = day.Date == selectedDay.Date ? "selected-day" : "";
+                                        if (day.Events != null )
+                                        {
+                                            CalendarEvent dayEvent = day.Events.Where(e => e.Holiday == true).FirstOrDefault();
+                                            holidayDay = dayEvent != null ? "holiday-day" : "";
+                                        }
+                                        else
+                                        {
+                                            holidayDay = "";
+                                        }
+                                    }
+                                    @if (!day.IsEmpty)
+                                    {
+                                        <div class="@holidayDay day shadow-effect @currentDayClass @selectedDayClass" @onclick="() => UpdateDay(day)">
+                                            <h3 class="day-font">@day.DayNumber</h3>
+                                            @{
+                                                int stk = 0;
+                                                int oil = 0;
+                                                int other = 0;
+                                            }
+                                            @if (day.Events != null)
+                                            {
+                                                @foreach (var item in day.Events)
+                                                {
+                                                    if (item.Description.ToUpper().Contains("STK"))
+                                                        stk++;
+                                                    else if (item.Description.ToUpper().Contains("PREHLIADKA"))
+                                                        oil++;
+                                                    else if (!item.Holiday)
+                                                        other++;
+                                                }
+                                                @if (stk != 0)
+                                                {
+                                                    <div class="day-alert Stk">
+                                                        @stk x STK
+                                                    </div>
+                                                }
+                                                @if (oil != 0)
+                                                {
+                                                    <div class="day-alert Oil">
+                                                        @oil x kontrola
+                                                    </div>
+                                                }
+                                                @if (other != 0)
+                                                {
+                                                    <div class="day-alert Basic-event">
+                                                        @other x úloha
+                                                    </div>
+                                                }
+                                            }
+                                        </div>
+                                    }
+
+                                </td>
+                            }
+                        </tr>
+                    }
+
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="col-sm-12 col-md-12 col-lg-3 event-dashboard">
+        <CalenderEventSection SelectedDay="selectedDay" />
+    </div>
+</div>
+
+@code {
+    int year = DateTime.Now.Year;
+    int month = DateTime.Now.Month;
+    CalendarDay selectedDay = new CalendarDay
+    {
+    };
+    List<CalendarDay> days = new List<CalendarDay>();
+    int rowsCount = 6;
+    CalendarDay[] loadedDays;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private void CallLoadData()
+    {
+        Task.Run(async () =>
+        {
+            await LoadData();
+        });
+    }
+
+    protected async Task LoadData()
+    {
+        loadedDays = await Http.GetFromJsonAsync<CalendarDay[]>("api/CalendarDays/" + year + "/" + month);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+
+    }
+
+
+    void SelectYear(ChangeEventArgs e)
+    {
+        year = Convert.ToInt32(e.Value.ToString());
+        RefreshCalendar();
+    }
+
+    void SelectMonth(ChangeEventArgs e)
+    {
+        month = Convert.ToInt32(e.Value.ToString());
+        RefreshCalendar();
+    }
+
+    public async Task UpdateCalendar(ChangeEventArgs e)
+    {
+        if (Convert.ToInt32(e.Value.ToString()) > 1000)
+            SelectYear(e);
+        else
+            SelectMonth(e);
+        await LoadData();
+        foreach (var day in days)
+        {
+            if (day.DayNumber != 0)
+            {
+                if (day.CalendarDayId == 0)
+                    await Http.PostJsonAsync("api/CalendarDays", day);
+            }
+        }
+        NavigationManager.NavigateTo("calendarPage");
+    }
+
+    void UpdateDay(CalendarDay day)
+    {
+        selectedDay = day;
+    }
+
+    void RefreshCalendar()
+    {
+        days = new List<CalendarDay>();
+        var firstDayDate = new DateTime(year, month, 1);
+        int monthFirstDayNumber = (int)firstDayDate.DayOfWeek;
+        int emptyDays;
+        if (monthFirstDayNumber == 0)
+            emptyDays = 6;
+        else
+            emptyDays = monthFirstDayNumber - 1;
+        for (int i = 0; i < emptyDays; i++)
+        {
+            days.Add(new CalendarDay
+            {
+                DayNumber = 0,
+                IsEmpty = true,
+            });
+        }
+
+        int daysInMoth = DateTime.DaysInMonth(year, month);
+
+        for (int i = 0; i < daysInMoth; i++)
+        {
+            if (loadedDays != null)
+            {
+                var actualDay = loadedDays.Where(d => d.Date.Day == i + 1).FirstOrDefault();
+                if (actualDay == null)
+                {
+                    days.Add(new CalendarDay
+                    {
+                        DayNumber = i + 1,
+                        IsEmpty = false,
+                        Date = new DateTime(year, month, i + 1)
+                    });
+                }
+                else
+                {
+                    actualDay.IsEmpty = false;
+                    days.Add(actualDay);
+                }
+            }
+            else
+            {
+                days.Add(new CalendarDay
+                {
+                    DayNumber = i + 1,
+                    IsEmpty = false,
+                    Date = new DateTime(year, month, i + 1)
+                });
+            }
+        }
+
+        int remainingDays = days.Count % 7;
+        if (remainingDays == 0)
+            rowsCount = days.Count / 7;
+        else
+            rowsCount = Convert.ToInt32(days.Count / 7) + 1;
+
+    }
+}

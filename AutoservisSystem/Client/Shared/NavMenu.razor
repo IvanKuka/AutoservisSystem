@@ -1,0 +1,80 @@
+﻿@inject NavigationManager Navigation
+
+
+<div class="top-row pl-4 navbar navbar-dark">
+    <a class="navbar-brand" href="">AutoservisSystem</a>
+    <button class="navbar-toggler" @onclick="ToggleNavMenu">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+</div>
+
+<div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
+    <ul class="nav flex-column">
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="oi oi-home" aria-hidden="true"></span> Domov
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="customerAdd">
+                <span class="oi oi-plus" aria-hidden="true"></span> Nový zákazník
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="carAdd">
+                <span class="oi oi-plus" aria-hidden="true"></span> Nové auto
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="orderAdd">
+                <span class="oi oi-plus" aria-hidden="true"></span> Nová zákazka
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="customerInfoes">
+                <span class="oi oi-person" aria-hidden="true"></span> Prehľad zákazníkov
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="carInfoes">
+                <span class="oi oi-list" aria-hidden="true"></span> Prehľad áut
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="orderInfoes">
+                <span class="oi oi-list-rich" aria-hidden="true"></span> Prehľad zákaziek
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="DashBoard">
+                <span class="oi oi-dashboard" aria-hidden="true"></span> Dashboard
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="calendarPage">
+                <span class="oi oi-calendar aria-hidden="true"></span> Kalendár
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="employeeAdd">
+                <span class="oi oi-person" aria-hidden="true"></span> Nový zamestnanec
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="partInfoes">
+                <span class="oi oi-wrench" aria-hidden="true"></span> Diely
+            </NavLink>
+        </li>
+    </ul>
+</div>
+
+@code {
+    private bool collapseNavMenu = true;
+
+    private string NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+}

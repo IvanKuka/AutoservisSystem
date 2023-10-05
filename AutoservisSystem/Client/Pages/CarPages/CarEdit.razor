@@ -1,0 +1,272 @@
+﻿@page "/carEdit/{id}"
+@using AutoservisSystem.Shared
+@using AutoservisSystem.Shared.Models
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<h2>Úprava auta</h2>
+<hr />
+<form>
+    <div class="row" style="max-width:500px; min-width:500px; float:left; margin:10px;">
+        <div class="col-md-8">
+            <div class="form-group">
+                <label for="CarEvidenceNumber" class="control-label">*Evidenčné číslo vozidla</label>
+                <input form="CarEvidenceNumber" class="form-control" @bind="car.CarEvidenceNumber" />
+                @if (isValidEvidenceNumber)
+                {
+                }
+                else if (car.CarEvidenceNumber == null || car.CarEvidenceNumber == String.Empty)
+                {
+        <div data-bn-type="text" class="validation-message">Toto pole je potrebné vyplniť</div> }
+    else
+    {
+
+        <div data-bn-type="text" class="validation-message">Zadajte správne EČV</div>}
+            </div>
+            <div class="form-group">
+                <label for="VIN" class="control-label">Vin číslo</label>
+                <input form="VIN" class="form-control" @bind="car.VIN" />
+                @if (!vinLength)
+                {
+        <div data-bn-type="text" class="validation-message">*Nespávna dĺžka VIN</div>}
+            </div>
+            <div class="form-group">
+                <label for="EngineNumber" class="control-label">Kód motora</label>
+                <input form="EngineNumber" class="form-control" @bind="car.EngineNumber" />
+            </div>
+            <div class="form-group">
+                <label for="Brand" class="control-label">Značka auta</label>
+                <input form="Brand" class="form-control" @bind="car.Brand" />
+                @if (car.Brand == String.Empty)
+                {
+        <div data-bn-type="text" class="validation-message">*Je potrebné vybrať značku auta</div>}
+            </div>
+            <div class="form-group">
+                <label for="ModelType" class="control-label">Model auta</label>
+                <input form="ModelType" class="form-control" @bind="car.ModelType" />
+                @if (car.ModelType == String.Empty)
+                {
+        <div data-bn-type="text" class="validation-message">*Je potrebné vybrať model auta</div>}
+            </div>
+            <div class="row" style="margin: 1px;">
+                <div class="form-group">
+                    @if (car.AutomaticTransmission)
+                    {<input type="button" class="btn btn-primary" @onclick="@ChangeTransmission" value="Automatická prevodovka" />}
+                    else
+                    {<input type="button" class="btn btn-primary" @onclick="@ChangeTransmission" value="Manuálna prevodovka" />}
+                </div>
+            </div>
+            <div class="row" style="margin: 1px;">
+                <div class="form-group">
+                    @if (car.Van)
+                    {<input type="button" class="btn btn-primary" @onclick="@ChangeVan" value="Dodávka" />}
+                    else
+                    {<input type="button" class="btn btn-primary" @onclick="@ChangeVan" value="Osobné auto" />}
+                </div>
+            </div>
+            <div class="row" style="margin: 1px;">
+                <div class="form-group">
+                    <input type="button" class="btn btn-success" @onclick="@UpdateCar" value="Uložiť" />
+                    <input type="button" class="btn btn-danger" @onclick="@Cancel" value="Zrušiť" />
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row" style="max-width:800px; min-width:500px; margin:10px; float:left;">
+        <div class="col-md-8">
+            <div class="form-group">
+                <label for="YearOfProduction" class="control-label">Rok výroby</label>
+                <input form="YearOfProduction" class="form-control" @bind="car.YearOfProduction" />
+            </div>
+            <div class="form-group">
+                <label for="EngigePowerInKW" class="control-label">Výkon motora(kW)</label>
+                <input form="EngigePowerInKW" class="form-control" @bind="car.EngigePowerInKW" />
+            </div>
+            <div class="form-group">
+                <label for="EngineVolume" class="control-label">Objem motora(cm<sup>3</sup>)</label>
+                <input form="EngineVolume" class="form-control" @bind="car.EngineVolume" />
+            </div>
+            <div class="form-group">
+                <label for="LastOilChange" class="control-label">Posledná výmena oleja</label>
+                <input form="LastOilChange" class="form-control" @bind="car.LastOilChange" type="date" min="2018-01-01" />
+            </div>
+            <div class="form-group">
+                <label for="LastSTK" class="control-label">Dátum poslednej STK</label>
+                <input form="LastSTK" class="form-control" @bind="car.LastSTK" type="date" min="2018-01-01" />
+            </div>
+            <div class="form-group" style="max-width:800px; min-width:500px;">
+                <label for="CustomerID" class="control-label">Majiteľ</label>
+                <select name="number" class="form-control selectpicker" @bind="customerID">
+                    @if (carOwner != null)
+                    {
+                        if (customerID == carOwner.CustomerId || customerID == 0)
+                        {
+                            <option value="">@MergeCustomerInfo(@carOwner)</option>
+                        }
+                        else
+                        {
+                            OwnerChanged();
+                            <option value="">Vyberte zákazníka</option>
+                        }
+                    }
+                    else
+                    {
+                        <option value="">Vyberte zákazníka</option>
+                    }
+                    @if (customers != null)
+                    {
+                        if (carOwner == null && (customerID == 0 || customerID == Int32.MaxValue))
+                        {
+                            SelectCarOwner();
+                        }
+                        @foreach (Customer customer in customers)
+                        {
+                            <option value="@customer.CustomerId">@MergeCustomerInfo(@customer)</option>
+                        }
+                    }
+                </select>
+                @if (customerID == 0)
+                {
+                    <div data-bn-type="text" class="validation-message">Je potrebné vybrať majiteľa</div>
+                }
+            </div>
+        </div>
+    </div>
+</form>
+
+@code {
+    [Parameter]
+    public string id { get; set; }
+
+    Car car = new Car
+    {
+        Brand = String.Empty,
+        ModelType = String.Empty
+    };
+
+    int customerID = Int32.MaxValue;
+    Customer[] customers;
+    Customer carOwner;
+
+    bool isValidEvidenceNumber = true;
+    bool vinLength = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        customerID = car.CustomerId;
+
+        await LoadData();
+    }
+
+
+    private void CallLoadData()
+    {
+        Task.Run(async () =>
+        {
+            await LoadData();
+        });
+    }
+
+    protected async Task LoadData()
+    {
+        car = await Http.GetJsonAsync<Car>("api/Cars/" + id);
+        customers = await Http.GetFromJsonAsync<Customer[]>("api/Customers");
+        StateHasChanged();
+    }
+
+    //zoskupenie dat pozivatela
+    string MergeCustomerInfo(Customer customer)
+    {
+        try
+        {
+            return customer.Surname + " " + customer.Name + ", " + customer.MobileNumber;
+        }
+        catch
+        {
+            return customer.Surname + ", " + customer.MobileNumber;
+        }
+    }
+
+
+    public void Dispose()
+    {
+        
+    }
+
+    public async Task UpdateCar()
+    {
+        isValidEvidenceNumber = EvidenceNumberValidation(car.CarEvidenceNumber);
+        carOwner = customers.Where(c => c.CustomerId == customerID).FirstOrDefault();
+        if (car.VIN != null)
+            VINCheck(car.VIN);
+
+        if (isValidEvidenceNumber && carOwner != null && vinLength && car.Brand != String.Empty && car.ModelType != String.Empty)
+        {
+            if (carOwner.Cars == null)
+                carOwner.Cars = new List<Car>();
+            carOwner.Cars.Add(car);
+            FormatInfoes(car);
+            if(car.CustomerId != carOwner.CustomerId)
+            {
+                car.CustomerId = carOwner.CustomerId;
+                await Http.PutJsonAsync("api/Customers/" + carOwner.CustomerId, carOwner);
+            }
+            await Http.PutJsonAsync("api/Cars/" + id, car);
+            NavigationManager.NavigateTo("carInfoes");
+        }
+        else
+        {
+            NavigationManager.NavigateTo("carEdit/" + id);
+        }
+    }
+    void Cancel()
+    {
+        NavigationManager.NavigateTo("carInfoes");
+    }
+
+    bool EvidenceNumberValidation(string evidence)
+    {
+        if (evidence == null || evidence == String.Empty)
+            return false;
+        /*if (Char.IsLetter(evidence[0]) && Char.IsLetter(evidence[1]))
+            return true;*/
+        return true;
+    }
+    void FormatInfoes(Car car)
+    {
+        try { car.CarEvidenceNumber = car.CarEvidenceNumber.ToUpper(); }
+        catch { }
+        try { car.VIN = car.VIN.ToUpper(); }
+        catch { }
+        try { car.EngineNumber = car.EngineNumber.ToUpper(); }
+        catch { }
+    }
+    bool VINCheck(string vin)
+    {
+        if (vin.Length != 17)
+        {
+            car.VIN = String.Empty;
+            return vinLength = false;
+        }
+        return vinLength = true;
+    }
+    Customer SelectCarOwner()
+    {
+        carOwner = customers.Where(c => c.CustomerId == car.CustomerId).FirstOrDefault();
+        customerID = carOwner.CustomerId;
+        return carOwner;
+    }
+    void OwnerChanged()
+    {
+        carOwner = null;
+    }
+    void ChangeTransmission()
+    {
+        car.AutomaticTransmission = !car.AutomaticTransmission;
+    }
+    void ChangeVan()
+    {
+        car.Van = !car.Van;
+    }
+}

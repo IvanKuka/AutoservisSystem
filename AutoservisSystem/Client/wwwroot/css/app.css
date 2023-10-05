@@ -1,0 +1,325 @@
+﻿@import url('open-iconic/font/css/open-iconic-bootstrap.min.css');
+
+html, body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+a, .btn-link {
+    color: #0366d6;
+}
+
+.btn-primary {
+    color: #fff;
+    background-color: #1b6ec2;
+    border-color: #1861ac;
+}
+
+.content {
+    padding-top: 1.1rem;
+}
+
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid #26b050;
+}
+
+.invalid {
+    outline: 1px solid red;
+}
+
+.validation-message {
+    color: red;
+}
+
+#blazor-error-ui {
+    background: lightyellow;
+    bottom: 0;
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+}
+
+    #blazor-error-ui .dismiss {
+        cursor: pointer;
+        position: absolute;
+        right: 0.75rem;
+        top: 0.5rem;
+    }
+
+tr.hide-table-padding td {
+    padding: 0;
+}
+
+.search-container button:hover {
+    background: #ccc;
+}
+.search-container button {
+    float: right;
+    padding: 6px;
+    margin-top: 8px;
+    margin-right: 16px;
+    background: #ddd;
+    font-size: 17px;
+    border: none;
+    cursor: pointer;
+}
+.shadow-effect{
+    transition: 0.3s
+}
+.shadow-effect:hover {
+    -webkit-box-shadow: 0px 4px 15px -6px rgba(0,0,0,0.75);
+    -moz-box-shadow: 0px 4px 15px -6px rgba(0,0,0,0.75);
+    box-shadow: 0px 4px 15px -6px rgba(0,0,0,0.75);
+}
+
+.calendar{
+    padding: 10px;
+}
+
+.calendar-table {
+    width: 100%;
+    background-color: #e1dfdd;
+    text-align: center;
+}
+.calendar-table thead{
+    background-color:white;
+    font-size: 24px;
+    font-weight:normal;
+    text-align:center;
+}
+.date-names {
+    font-size: 18px;
+    font-weight: normal;
+}
+
+.calendar-table td{
+    padding:3px;
+}
+
+.calendar-table .day {
+    width: 125px;
+    height: 125px;
+    min-width: 75px;
+    min-height: 75px;
+    max-width: 125px;
+    max-height:125px;
+    margin: 10px;
+    border-radius: 5px;
+    background-color: white;
+    padding: 5px;
+    cursor: pointer;
+}
+
+.current-day {
+    border: 2px solid #0078d4;
+    background-color: #c8c6c4 !important;
+    color: #0078d4;
+}
+
+.selected-day {
+    border: 2px solid #005a9e;
+    color: #005a9e;
+    background-color: #71afe5 !important;
+}
+
+.holiday-day {
+    border: 2px solid #ea4300 !important;
+}
+
+.Holiday-event {
+    background: #ea4300;
+    color: white;
+}
+
+.day-font{
+    font-size: 24px;
+    font-weight:normal;
+}
+
+.day .day-alert{
+    font-size:10px;
+    padding:5px;
+}
+@media(max-width: 900px) {
+    .calendar-table .day {
+        width: 100%;
+        height: 100%;
+    }
+    .Basic-event{
+        font-size: 50%;
+    }
+    .Oil {
+        font-size: 50%;
+    }
+    .Stk {
+        font-size: 50%;
+    }
+}
+
+.Oil {
+    background: #8e562e;
+    color:white;
+}
+
+.Stk {
+    background: #d13438;
+    color: white;
+}
+
+.Basic-event {
+    background: #0078d4;
+    color: white;
+}
+
+
+.calendar-toolbar {
+    background: #0078d4;
+    color:white;
+}
+
+.toolbar-button {
+    background: #0078d4;
+    margin: 0px;
+    padding: 5px 10px;
+    text-align:center;
+    vertical-align:middle;
+    outline:none;
+    font-weight:100;
+    color:white;
+    font-size:25px;
+    border:none;
+}
+
+    .toolbar-button:hover {
+        background: #106ebe;
+        color:white;
+    }
+
+    .toolbar-button:focus{
+        border:none;
+        outline:none;
+    }
+
+.fluent-input {
+    display: block;
+    width: 100%;
+    padding: 3px 7px;
+    margin: 8px 0;
+    border: 1px solid #e1dfdd;
+}
+
+    .fluent-input:focus {
+        border: 1px solid #a19f9d;
+    }
+
+.card{
+    margin:10px;
+}
+
+.card-content {
+    padding: 10px;
+    border-left: 1px solid #e1dfdd;
+    border-bottom: 1px solid #e1dfdd;
+    border-right: 1px solid #e1dfdd;
+}
+
+.event-dashboard {
+    margin: 120px 0;
+    min-width: 360px;
+}
+
+.head-event-list{
+    font-size:14px;
+    font-weight:normal;
+}
+
+.event {
+    border-radius: 5px;
+    margin: 5px;
+    padding: 5px;
+}
+
+.dashboad {
+    font-size: 30px;
+    font-weight: bold;
+}
+.hide-panel {
+    color: #c8c6c4 !important;
+    font-size: 16px !important;
+
+}
+    .hide-panel:hover {
+        background-color: white;
+        opacity: 0.2;
+    }
+
+@media print {
+    #printPageButton {
+        display: none;
+    }
+}
+
+.center {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.header {
+    margin: 4px;
+    overflow:auto;
+}
+
+.header-right{
+    margin: 4px 100px 10px auto;
+    float:right;
+    font-size:22px;
+}
+
+.header-left {
+    float: left;
+    margin: 4px auto 14px 50px;
+}
+
+.body-right {
+    margin-right: 50px;
+    float: right;
+    border-left: 1px solid #000;
+    font-size: 22px;
+}
+
+.body-left {
+    float: left;
+    margin-left: 50px;
+    font-size: 22px;
+}
+
+.body-info {
+    margin: 4px;
+    overflow: auto;
+}
+
+.body-info-customer {
+    float: left;
+    margin: 50px;
+    font-size: 22px;
+}
+
+.body-info-tasks {
+    float: left;
+    margin: 50px;
+    font-size: 22px;
+}
+
+.div-name{
+    margin-top:4px;
+    margin-left:10px;
+}
+
+.paid {
+    background-color: #49bf55;
+}
+

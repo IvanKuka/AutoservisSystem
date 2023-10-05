@@ -1,0 +1,677 @@
+﻿@page "/orderEdit/{id}"
+@using AutoservisSystem.Shared
+@using AutoservisSystem.Shared.Models
+@using System.Text
+@using System.Globalization
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime IJS
+
+<h2>Úprava zákazky</h2>
+<hr />
+<form>
+
+    <div class="row" style="max-width:800px; min-width:500px; margin:10px; float:left;">
+        <div class="col-md-8">
+            <div class="form-group" style="max-width:800px; min-width:500px;">
+                <label for="CustomerID" class="control-label">Majiteľ</label>
+                <select name="number" class="form-control selectpicker" @bind="customerId">
+                    @if (customers != null)
+                    {
+                        SelectOrderOwner();
+                        if (orderOwner != null)
+                        {
+                            <option value="@Int32.MaxValue">Vyberte zákazníka</option>
+                            @foreach (Customer customer in customers)
+                            {
+                                if (customer.CustomerId == customerId)
+                                {
+                                    <option value="@customer.CustomerId" selected="selected">@MergeCustomerInfo(customer)</option>
+                                }
+                                else
+                                {
+                                    <option value="@customer.CustomerId">@MergeCustomerInfo(customer)</option>
+                                }
+                            }
+                        }
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="CarID" class="control-label">Auto</label>
+                <select name="number" class="form-control selectpicker" @bind="carId">
+                    @if (customers != null)
+                    {
+                        @if (carId == Int32.MaxValue && orderOwner.CustomerId == order.CustomerId)
+                            SelectCar();
+                        if (orderOwner.CustomerId != order.CustomerId)
+                        {
+                            <option value="@Int32.MaxValue" selected="selected">Vyberte auto</option>
+                        }
+                        else
+                        {
+                            <option value="0">Vyberte auto</option>
+                        }
+
+                        @foreach (Car car in orderOwner.Cars)
+                        {
+                            <option value="@car.CarId">@car.CarEvidenceNumber</option>
+                        }
+                    }
+                </select>
+                @if (notCarSelected)
+                {
+                    <div data-bn-type="text" class="validation-message">*Vyberte auto</div>
+                }
+            </div>
+            <div class="form-group">
+                <label for="Description" class="control-label">Úlohy</label>
+                @if (order.Tasks != null)
+                {
+                    @foreach (WorkTask tmpTask in order.Tasks)
+                    {
+                        <div class="input-group mb-3">
+                            @if (tmpTask.Done)
+                            {
+                                <button class="btn" type="button" @onclick="() => TaskSetDone(tmpTask)">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-check-circle-fill" viewBox="0 0 16 16" style="color:#498205">
+                                        <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z" />
+                                    </svg>
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn" type="button" @onclick="() => TaskSetDone(tmpTask)">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-x-circle-fill" viewBox="0 0 16 16" style="color:#a4262c;">
+                                        <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM5.354 4.646a.5.5 0 1 0-.708.708L7.293 8l-2.647 2.646a.5.5 0 0 0 .708.708L8 8.707l2.646 2.647a.5.5 0 0 0 .708-.708L8.707 8l2.647-2.646a.5.5 0 0 0-.708-.708L8 7.293 5.354 4.646z"></path>
+                                    </svg>
+                                </button>
+                            }
+                            <input form="Description" class="form-control" @bind="tmpTask.Description" />
+                            <div class="input-group-append">
+                                <button class="btn btn-danger" type="button" @onclick="(() => RemoveTask(tmpTask))">Odstrániť</button>
+                            </div>
+                        </div>
+                        <br />
+                    }
+                }
+                <input form="Description" class="form-control" @bind="taskDescription" />
+                <br />
+                <button class="btn btn-primary" @onclick="(() => AddTask())" type="button">Pridať úlohu</button>
+            </div>
+        </div>
+    </div>
+    <div class="row" style="max-width:500px; min-width:400px; margin:10px; float:left;">
+        <div class="col-md-8">
+            <div class="form-group">
+                <label for="Kilometres" class="control-label">Kilometre</label>
+                <input form="Kilometres" class="form-control" @bind="order.Kilometres" />
+                @if (order.Kilometres == 0)
+                {
+                    <div data-bn-type="text" class="validation-message">*Zadajte kilometre</div>
+                }
+            </div>
+            <div class="form-group">
+                <label for="employeeId" class="control-label">Pracovník</label>
+                <select name="employeeId" class="form-control selectpicker" @bind="employeeId">
+                    @if (employees != null)
+                    {
+                        @if (employeeId == Int32.MaxValue)
+                            SelectEmployee();
+                        @foreach (var employee in employees)
+                        {
+                            if (employee.EmployeeId == employeeId)
+                            {
+                                <option value="@employee.EmployeeId" selected="selected">@employee.Name</option>
+                            }
+                            else
+                            {
+                                <option value="@employee.EmployeeId">@employee.Name</option>
+                            }
+                        }
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="Hours" class="control-label">Počet hodín</label>
+                <input form="Hours" class="form-control" @bind="order.Hours" />
+            </div>
+            @if (parts != null && parts.Count != 0)
+            {
+                <div class="form-group">
+                    @if (ordersParts != null && ordersParts.Count != 0)
+                    {
+                        <label for="part" class="control-label">Diely:</label>
+                        <br />
+                        @foreach (var item in ordersParts.Keys)
+                        {
+                            var tmpPart = parts.Where(p => p.PartId == item).FirstOrDefault();
+                            <label for="item"><b>@tmpPart.Name : @ordersParts[item].Price€/@tmpPart.Unit</b></label>
+                                <div>
+                                    <label for="count" style="margin-top:10px;">@tmpPart.PartNumber</label>
+                                    <div class="row">
+                                        <div class="col-sm-5">
+                                            <input class="form-control" type="number" @bind="@ordersParts[item].Pieces" min="1" />
+                                        </div>
+                                        <div class="col-sm-1">
+                                            <label>@tmpPart.Unit</label>
+                                        </div>
+                                        <div class="col-sm-3">
+                                            <button class="btn btn-danger" style="float:right;" type="button" @onclick="@(async () => await RemoveOdersPart(item))">Odstrániť</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <hr />
+                        }
+                    }
+                </div>
+            }
+        </div>
+    </div>
+    <div class="row" style="max-width:500px; min-width:400px; margin:10px; float:left;">
+        <div class="col-md-8">
+            <div class="form-group">
+                <label for="InvoiceNumber" class="control-label">Číslo faktúry</label>
+                <input form="InvoiceNumber" class="form-control" @bind="order.InvoiceNumber" />
+            </div>
+            <div class="form-group">
+                <label for="part" class="control-label">Pridať diel</label>
+                @if (parts != null && parts.Count != 0)
+                {
+                    @if (!newPart)
+                    {
+                        <div class="form-group">
+                            <button class="btn btn-primary" @onclick="SetNewPart" type="button">Nový diel</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="form-group">
+                            <button class="btn btn-primary" @onclick="SetNewPart" type="button">Existujúci diel</button>
+                        </div>
+                    }
+                    @if (!newPart)
+                    {
+                        <div class="input-group">
+                            <div class="form-outline">
+                                <input type="search" id="form1" class="form-control" placeholder="Zadajte meno" @onchange="@((ChangeEventArgs __e) => findPart = __e.Value.ToString())" value="@findPart" />
+                            </div>
+                        </div>
+                         <br />
+                            <select name="part" class="form-control selectpicker" @bind="partId">
+                            <option value="">Vyberte diel</option>
+                            @if (parts != null)
+                            {
+                                FindParts();
+                                @foreach (var tmp in selectedParts)
+                                {
+                                    <option value="@tmp.PartId">@tmp.PartNumber - @tmp.Price €/@tmp.Unit</option>
+                                }
+                            }
+                            </select>
+
+                    }
+                }
+
+                else
+                {
+                    newPart = true;
+                }
+            </div>
+            @if (newPart)
+            {
+                @if (orderOwner != null && part != null)
+                {
+                    var car = orderOwner.Cars.Where(c => c.CarEvidenceNumber == order.CarEvidenceNumber).FirstOrDefault();
+                    <div class="form-group">
+                        <label for="Name" class="control-label">Názov</label>
+                        <input form="Name" class="form-control" @bind="part.Name" />
+                    </div>
+                    <div class="form-group">
+                        <label for="PartNumber" class="control-label">Číslo dielu/Popis služby</label>
+                        <input form="PartNumber" class="form-control" @bind="part.PartNumber" />
+                    </div>
+                    <div class="form-group">
+                        <label for="Supplier" class="control-label">Dodávateľ</label>
+                        <input form="Supplier" class="form-control" @bind="part.Supplier" />
+                    </div>
+                    <div class="form-group">
+                        <label for="CarBrand" class="control-label">Značka</label>
+                        <input form="CarBrand" class="form-control" @bind="part.Brand" />
+                    </div>
+                    <div class="form-group">
+                        <label for="Price" class="control-label">Cena</label>
+                        <input form="Price" class="form-control" @bind="part.Price" />
+                    </div>
+                    <div class="form-group">
+                        <label for="Price" class="control-label">Jednotka</label>
+                        <select name="unit" class="form-control selectpicker" @bind="part.Unit">
+                            <option value="ks">kus</option>
+                            <option value="g">gram</option>
+                            <option value="l">liter</option>
+                            <option value="sada">sada</option>
+                            <option value="služba">služba</option>
+                        </select>
+                    </div>
+                }
+            }
+
+            <br />
+            <div class="form-group">
+                <label for="pieces" class="control-label">Počet jednotiek</label>
+                <input type="number" form="pieces" class="form-control" @bind="pieces" />
+            </div>
+            <br />
+            <div class="form-group">
+                <button class="btn btn-primary" type="button" @onclick="@(async() => await AddPart())">Pridať diel</button>
+            </div>
+            <div class="row" style="margin: 1px;">
+                <div class="form-group">
+                    <input type="button" class="btn btn-success" @onclick="@UpdateOrder" value="Uložiť" />
+                    <input type="button" class="btn btn-danger" @onclick="@Cancel" value="Zrušiť" />
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+@code {
+    [Parameter]
+    public string id { get; set; }
+
+    private string findPart = null;
+    Order order = new Order();
+    Customer[] customers;
+
+    int customerId = Int32.MaxValue;
+    int carId = Int32.MaxValue;
+    int employeeId = Int32.MaxValue;
+
+    string taskDescription;
+    List<WorkTask> tasksToDelete = new List<WorkTask>();
+    CalendarDay daySTK = new CalendarDay();
+    CalendarDay dayOil = new CalendarDay();
+
+    int pieces = 1;
+    bool newPart = false;
+    List<Part> parts = new List<Part>();
+    List<Part> selectedParts =  new List<Part>();
+    Dictionary<int,OrdersPart> ordersParts;
+    List<Employee> employees;
+    Part part = new Part
+    {
+        Unit = "ks"
+    };
+    int partId = Int32.MaxValue;
+    OrdersPart ordersPart = new OrdersPart();
+
+    Customer orderOwner;
+    bool notCarSelected = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+
+    }
+    private void CallLoadData()
+    {
+        Task.Run(async () =>
+        {
+            await LoadData();
+        });
+    }
+
+
+    public void Dispose()
+    {
+
+    }
+
+    protected async Task LoadData()
+    {
+        order = await Http.GetJsonAsync<Order>("api/Orders/" + id);
+        customers = await Http.GetFromJsonAsync<Customer[]>("api/Customers");
+        dayOil = await Http.GetJsonAsync<CalendarDay>("api/CalendarDays/specificDay/" + 1);
+        daySTK = await Http.GetJsonAsync<CalendarDay>("api/CalendarDays/specificDay/" + 2);
+        employees = await Http.GetFromJsonAsync<List<Employee>>("api/Employees");
+        ordersParts = await Http.GetFromJsonAsync<Dictionary<int,OrdersPart>>("api/OrdersParts/orderId/" + order.OrderId);
+        parts = await Http.GetFromJsonAsync<List<Part>>("api/Parts");
+        StateHasChanged();
+    }
+
+    protected async Task LoadParts()
+    {
+        ordersParts = await Http.GetFromJsonAsync<Dictionary<int, OrdersPart>>("api/OrdersParts/orderId/" + order.OrderId);
+        parts = await Http.GetFromJsonAsync<List<Part>>("api/Parts");
+        StateHasChanged();
+    }
+
+    //zoskupi info o zakaznikovi
+    string MergeCustomerInfo(Customer customer)
+    {
+        try
+        {
+            return customer.Surname + " " + customer.Name + ", " + customer.MobileNumber;
+        }
+        catch
+        {
+            return customer.Surname + ", " + customer.MobileNumber;
+        }
+    }
+
+    public async Task UpdateOrder()
+    {
+        Car actualCar = null;
+        orderOwner = SelectCustomer(customerId);
+        if (orderOwner != null)
+        {
+            notCarSelected = true;
+            foreach (Car car in orderOwner.Cars)
+            {
+                if (car.CarId == carId)
+                {
+                    notCarSelected = false;
+                    actualCar = car;
+                    break;
+                }
+            }
+        }
+        if (taskDescription != null && taskDescription != String.Empty)
+            AddTask();
+
+        if (customerId != Int32.MaxValue && carId != Int32.MaxValue && !notCarSelected && order.Tasks.Count > 0 && order.Kilometres > 0)
+        {
+            orderOwner.Orders.Add(order);
+            order.CustomerId = customerId;
+            order.CarEvidenceNumber = actualCar.CarEvidenceNumber;
+            order.EmployeeId = employeeId;
+            SetPrice(order, actualCar);
+
+            var isDOne = order.Tasks.Where(t => t.Done == false).FirstOrDefault();
+            if (isDOne == null)
+            {
+                order.Done = true;
+                order.DoneDate = DateTime.Today;
+            }
+            else
+            {
+                order.DoneDate = new DateTime();
+                order.Done = false;
+            }
+            await Http.PutJsonAsync("api/Customers/" + orderOwner.CustomerId, orderOwner);
+            await Http.PutJsonAsync("api/Orders/" + order.OrderId, order);
+            foreach (WorkTask task in order.Tasks)
+            {
+                if (task.Description.ToUpper().Contains("STK") && task.Done)
+                {
+                    actualCar.LastSTK = DateTime.Today;
+                    await EventsUpgrade(2, actualCar, task.Description);
+                    await Http.PutJsonAsync("api/Cars/" + actualCar.CarId, actualCar);
+                }
+                if (task.Description.ToUpper().Contains("PREHLIADKA") && task.Done)
+                {
+                    actualCar.LastOilChange = DateTime.Today;
+                    await EventsUpgrade(1, actualCar, task.Description);
+                    await Http.PutJsonAsync("api/Cars/" + actualCar.CarId, actualCar);
+                }
+
+                if (task.TaskId == 0)
+                {
+                    task.OrderId = order.OrderId;
+                    await Http.PostJsonAsync("api/Tasks", task);
+                }
+                else
+                {
+                    await Http.PutJsonAsync("api/Tasks/" + task.TaskId, task);
+                }
+            }
+
+            foreach (WorkTask task in tasksToDelete)
+            {
+                if (task.TaskId != 0)
+                {
+                    await Http.DeleteAsync("api/Tasks/" + task.TaskId);
+                }
+            }
+            foreach(int ordersPart in ordersParts.Keys)
+            {
+                await Http.PutJsonAsync("api/OrdersParts/" + ordersParts[ordersPart].OrdersPartId, ordersParts[ordersPart]);
+            }
+            NavigationManager.NavigateTo("orderInfoes");
+        }
+        else
+        {
+            NavigationManager.NavigateTo("orderEdit/" + id);
+        }
+    }
+
+    public async Task EventsUpgrade(int years, Car actualCar, string description)
+    {
+        if (description.ToUpper().Contains("STK"))
+            description = "STK";
+        if (description.ToUpper().Contains("PREHLIADKA"))
+            description = "Prehliadka";
+
+        var tmp = orderOwner.CalendarEvents
+        .Where(c => c.CarId == actualCar.CarId)
+        .Where(c => c.Description.ToUpper().Contains(description.ToUpper())).FirstOrDefault();
+
+        if (tmp == null)
+        {
+            tmp = new CalendarEvent
+            {
+                CarId = actualCar.CarId,
+                Description = description + " " + actualCar.CarEvidenceNumber + " " + orderOwner.Surname + " " + orderOwner.MobileNumber,
+            };
+
+            if (years == 2)
+            {
+                tmp.DateFrom = daySTK.Date;
+                tmp.CalendarDayId = daySTK.CalendarDayId;
+            }
+            if (years == 1)
+            {
+                tmp.DateFrom = dayOil.Date;
+                tmp.CalendarDayId = dayOil.CalendarDayId;
+            }
+
+            await Http.PostJsonAsync("api/CalendarEvents", tmp);
+        }
+        else
+        {
+            tmp.CarId = actualCar.CarId;
+            tmp.Description = description + " " + actualCar.CarEvidenceNumber + " " + orderOwner.Surname + " " + orderOwner.MobileNumber;
+            if (years == 2)
+            {
+                tmp.DateFrom = daySTK.Date;
+                tmp.CalendarDayId = daySTK.CalendarDayId;
+            }
+            if (years == 1)
+            {
+                tmp.DateFrom = dayOil.Date;
+                tmp.CalendarDayId = dayOil.CalendarDayId;
+            }
+            await Http.PutJsonAsync("api/CalendarEvents/" + tmp.CalendarEventId, tmp);
+        }
+    }
+
+    void Cancel()
+    {
+        NavigationManager.NavigateTo("orderInfoes");
+    }
+
+    //najde aktualneho zadavatela zakazky
+    void SelectOrderOwner()
+    {
+        if (customerId == Int32.MaxValue)
+        {
+            customerId = customers.Where(c => c.CustomerId == order.CustomerId).FirstOrDefault().CustomerId;
+            orderOwner = customers.Where(c => c.CustomerId == customerId).FirstOrDefault();
+        }
+        else
+        {
+            orderOwner = customers.Where(c => c.CustomerId == customerId).FirstOrDefault();
+        }
+    }
+
+    void SelectEmployee()
+    {
+        employeeId = employees.Where(e => e.EmployeeId == order.EmployeeId).FirstOrDefault().EmployeeId;
+    }
+
+    private Customer SelectCustomer(int customerId)
+    {
+        return customers.Where(c => c.CustomerId == customerId).FirstOrDefault();
+    }
+
+    //najde aktualne zadane auto v zakazke
+    void SelectCar()
+    {
+        carId = orderOwner.Cars.Where(c => c.CarEvidenceNumber == order.CarEvidenceNumber).FirstOrDefault().CarId;
+    }
+
+    void AddTask()
+    {
+        if (taskDescription != null && taskDescription != String.Empty)
+        {
+            WorkTask tmpTask = new WorkTask();
+            tmpTask.Description = taskDescription;
+            tmpTask.Done = false;
+            order.Tasks.Add(tmpTask);
+            if (taskDescription.ToUpper().Contains("PREHLIADKA"))
+                ControlTask();
+            taskDescription = null;
+        }
+        NavigationManager.NavigateTo("orderEdit/" + id);
+    }
+
+    void ControlTask()
+    {
+        WorkTask tmpTask = new WorkTask();
+        tmpTask.Description = "Vymeniť olej a filtre";
+        order.Tasks.Add(tmpTask);
+
+        tmpTask = new WorkTask();
+        tmpTask.Description = "Pozrieť brzdovú a chladiacu kvapalinu";
+        order.Tasks.Add(tmpTask);
+
+        tmpTask = new WorkTask();
+        tmpTask.Description = "Pozrieť podvozok";
+        order.Tasks.Add(tmpTask);
+
+        tmpTask = new WorkTask();
+        tmpTask.Description = "Dofúkať kolesá";
+        order.Tasks.Add(tmpTask);
+
+        tmpTask = new WorkTask();
+        tmpTask.Description = "Skontrolovať remene";
+        order.Tasks.Add(tmpTask);
+
+        tmpTask = new WorkTask();
+        tmpTask.Description = "Dofúkať rezervu";
+        order.Tasks.Add(tmpTask);
+    }
+
+    void RemoveTask(WorkTask taskToRemove)
+    {
+        tasksToDelete.Add(taskToRemove);
+        order.Tasks.Remove(taskToRemove);
+    }
+
+    void TaskSetDone(WorkTask task)
+    {
+        task.Done = !task.Done;
+    }
+
+    void SetNewPart()
+    {
+        newPart = !newPart;
+    }
+
+    public async Task AddPart()
+    {
+        ordersPart.OrderId = order.OrderId;
+        if (newPart)
+        {
+            if (part.PartNumber != null && part.PartNumber != String.Empty && part.Name != null && part.Name != String.Empty)
+            {
+                ordersPart.Pieces = pieces;
+                ordersPart.Price = part.Price;
+                if (part.OrdersParts == null)
+                    part.OrdersParts = new List<OrdersPart>();
+
+                part.OrdersParts.Add(ordersPart);
+
+                await Http.PostJsonAsync("api/Parts", part);
+                part = new Part();
+                ordersPart = new OrdersPart();
+                await LoadParts();
+            }
+        }
+        else
+        {
+            if(partId != Int32.MaxValue && partId != 0)
+            {
+                ordersPart.PartId = partId;
+
+                if (ordersParts.ContainsKey(ordersPart.PartId))
+                {
+                    ordersParts[ordersPart.PartId].Pieces += pieces;
+                    await Http.PutJsonAsync("api/OrdersParts/" + ordersParts[ordersPart.PartId].OrdersPartId, ordersParts[ordersPart.PartId]);
+                }
+                else
+                {
+                    ordersPart.Pieces = pieces;
+                    ordersPart.Price = parts.Where(p => p.PartId == partId).FirstOrDefault().Price;
+                    await Http.PostJsonAsync("api/OrdersParts" , ordersPart);
+                    await LoadParts();
+                }
+                ordersPart = new OrdersPart();
+            }
+        }
+        pieces = 1;
+        await Http.PutAsJsonAsync("api/Orders/" + order.OrderId, order);
+        NavigationManager.NavigateTo("orderEdit/" + id);
+    }
+
+    public async Task RemoveOdersPart(int key)
+    {
+        await Http.DeleteAsync("api/OrdersParts/" + ordersParts[key].OrdersPartId);
+        ordersParts.Remove(key);
+
+        NavigationManager.NavigateTo("orderEdit/" + id);
+    }
+
+    void SetPrice(Order _order, Car _car)
+    {
+        if (_car.Van)
+        {
+            _order.Price = 28 * _order.Hours;
+        }
+        else
+        {
+            _order.Price = 25 * _order.Hours;
+        }
+        foreach (var item in ordersParts.Keys)
+        {
+            var _part = parts.Where(p => p.PartId == item).FirstOrDefault();
+            _order.Price += ordersParts[item].Pieces * ordersParts[item].Price;
+        }
+        _order.Price = Math.Round(_order.Price, 2);
+    }
+
+    void FindParts()
+    {
+
+        if (findPart != null && findPart != String.Empty)
+            selectedParts = parts.Where(p => p.PartNumber.ToUpper().Contains(findPart.ToUpper())).ToList();
+        else
+            selectedParts = parts;
+
+        if (selectedParts.Count == 0)
+            NavigationManager.NavigateTo("");
+    }
+
+
+}

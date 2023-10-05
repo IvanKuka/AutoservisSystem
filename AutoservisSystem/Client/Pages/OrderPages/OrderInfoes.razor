@@ -1,0 +1,311 @@
+﻿@page "/orderInfoes"
+@using AutoservisSystem.Shared.Models
+@using AutoservisSystem.Shared
+@using System.Linq
+@using System
+@using System.Text
+@using System.Globalization
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime IJS
+
+<h2>Prehľad zákaziek</h2>
+<hr />
+<div class="row">
+    <div class="input-group col-lg-2">
+        <div class="form-group">
+            <input type="date" class="form-control" @bind="dateFrom" min="2021-01-01" style="max-width: 300px; padding-left: 15px; padding-right: 15px;" />
+            <label for="dateFrom" class="control-label">Dátum od</label>
+        </div>
+    </div>
+    <div class="input-group col-lg-2">
+        <div class="form-group">
+            <input type="date" class="form-control" @bind="dateTo" min="2021-01-01" style="max-width: 300px; padding-left: 15px;" />
+            <label for="dateFor" class="control-label">Dátum do</label>
+        </div>
+    </div>
+    <div>
+        <div class="input-group">
+            <div class="form-outline">
+                <input type="search" id="form1" class="form-control" placeholder="Zadajte meno" @onchange="@((ChangeEventArgs __e) => findOrder = __e.Value.ToString())" value="@findOrder" />
+            </div>
+        </div>
+    </div>
+    <div style="float:right; margin-left:50px;">
+        <button class="btn btn-success" type="button" @onclick="@(async () => await DownloadFile())">Exportovať do excelu</button>
+    </div>
+</div>
+<br />
+@if (orders == null)
+{
+    <p>Načitavanie</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Dátum objednávky</th>
+                <th>Dokončená</th>
+                <th>Majiteľ auta</th>
+                <th>EČV</th>
+                <th>Hlavná úloha</th>
+                <th>Cena</th>
+                <th>Kilometre</th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var order in orders)
+            {
+                if (dateFrom < order.ReceivedDate && order.ReceivedDate < dateTo && SearchingOrders(order))
+                {
+                    string paid = order.Paid == true ? "paid" : "";
+                    <tr class="@paid">
+                        <td>@order.ReceivedDate.ToString("dd.MM.yyyy")</td>
+                        @if (order.DoneDate.Date.ToString("d.M.yyyy").Equals("1.1.0001"))
+                        {
+                            <td>-</td>
+                        }
+                        else
+                        {
+                            <td>@order.DoneDate.Date.ToString("dd.MM.yyyy")</td>
+                        }
+                        <td>
+                            @SelectCustomer(order).Name @SelectCustomer(order).Surname
+                        </td>
+                        <td>@order.CarEvidenceNumber</td>
+                        <td>@order.Tasks.First().Description</td>
+                        @if (order.Price > 0)
+                        {
+                            order.Price = Math.Round(order.Price, 2);
+                            <td>@order.Price €</td>
+                        }
+                        else
+                        {
+                            <td>-</td>
+                        }
+                        <td>@order.Kilometres</td>
+                        <td>
+                            <button class="btn btn-primary" @onclick="(() => ViewMoreInfoOrder(order))">Viac</button>
+                        </td>
+                        <td>
+                            <button class="btn btn-primary" @onclick="(() => ViewOrdersParts(order))">Diely</button>
+
+                        </td>
+                        <td>
+                            <button class="btn btn-primary" @onclick="() => PrintOrder(order)">Tlačiť</button>
+                        </td>
+                        <td>
+                              <a class="btn btn-primary" href="/orderEdit/@order.OrderId">Upraviť</a>
+                        </td>
+                        <td>
+                            @if (order.Paid)
+                            {
+                                <button class="btn btn-success" @onclick="() => SetPaid(order)">Zaplatená</button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-danger" @onclick="() => SetPaid(order)">Nezaplatená</button>
+                            }
+                        </td>
+                        <td>
+                            <button class="btn btn-danger" type="button" @onclick="@(async () => await DeleteOrder(order.OrderId))">Odstrániť</button>
+                        </td>
+                    </tr>
+                    @foreach (int tmp in orderMoreInfoes.Keys)
+                    {
+                        @if (tmp == order.OrderId)
+                        {
+                            { Collapsed = orderMoreInfoes[tmp]; }
+                            <tr>
+                                <td colspan="13">
+                                    <OrderMoreInfoes Collapsed="@Collapsed" Order="@order"></OrderMoreInfoes>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    @foreach (int tmp in ordersParts.Keys)
+                    {
+                        @if (tmp == order.OrderId)
+                        {
+                            { CollapsedParts = ordersParts[tmp]; }
+                            <tr>
+                                <td colspan="13">
+                                    <OrderPatsInfo Collapsed="@CollapsedParts" OrderId="@order.OrderId"></OrderPatsInfo>
+                                </td>
+                            </tr>
+                        }
+                    }
+                }
+            }
+        </tbody>
+    </table>
+
+}
+
+@code {
+    string findOrder;
+    Customer[] customers;
+    Order[] orders;
+    private bool Collapsed = true;
+    private bool CollapsedParts = true;
+
+    Order currentOrder = new Order();
+
+    DateTime dateTo = DateTime.Today.AddDays(1);
+    DateTime dateFrom = DateTime.Today.AddMonths(-1);
+
+    private Dictionary<int, bool> orderMoreInfoes = new Dictionary<int, bool>();
+    private Dictionary<int, bool> ordersParts = new Dictionary<int, bool>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private void CallLoadData()
+    {
+        Task.Run(async () =>
+        {
+            await LoadData();
+        });
+    }
+
+    protected async Task LoadData()
+    {
+        customers = await Http.GetFromJsonAsync<Customer[]>("api/Customers");
+        orders = await Http.GetFromJsonAsync<Order[]>("api/Orders");
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+
+    }
+
+    Customer SelectCustomer(Order order)
+    {
+        var customer = customers.Where(c => c.CustomerId == order.CustomerId).FirstOrDefault();
+        return customer;
+    }
+
+    public async Task PrintOrder(Order order)
+    {
+        await IJS.InvokeAsync<object>("open", new object[] { "/OrderPrint/" + order.OrderId + "/" + order.CustomerId, "_blank" });
+    }
+
+    //zobrazenie viac info auta
+    void ViewMoreInfoOrder(Order order)
+    {
+        foreach (int tmp in orderMoreInfoes.Keys)
+        {
+            if (tmp == order.OrderId)
+            {
+                if (orderMoreInfoes[tmp])
+                {
+                    orderMoreInfoes[tmp] = false;
+                }
+                else
+                {
+                    orderMoreInfoes[tmp] = true;
+                }
+                return;
+            }
+        }
+        orderMoreInfoes.Add(order.OrderId, false);
+    }
+
+    void ViewOrdersParts(Order order)
+    {
+        foreach (int tmp in ordersParts.Keys)
+        {
+            if (tmp == order.OrderId)
+            {
+                if (ordersParts[tmp])
+                {
+                    ordersParts[tmp] = false;
+                }
+                else
+                {
+                    ordersParts[tmp] = true;
+                }
+                return;
+            }
+        }
+        ordersParts.Add(order.OrderId, false);
+    }
+
+    bool SearchingOrders(Order tmpOrder)
+    {
+        if (findOrder == null)
+            return true;
+        if (findOrder == String.Empty)
+            return true;
+        if (RemoveAccents(tmpOrder.CarEvidenceNumber).Contains(RemoveAccents(findOrder.ToUpper())))
+            return true;
+        var orderOwner = customers.Where(c => c.CustomerId == tmpOrder.CustomerId).FirstOrDefault();
+        try
+        {
+            if (RemoveAccents(orderOwner.Name.ToUpper()).Contains(RemoveAccents(findOrder.ToUpper())))
+                return true;
+        }
+        catch { }
+        try
+        {
+            if (RemoveAccents(tmpOrder.Tasks.First().Description.ToUpper()).Contains(RemoveAccents(findOrder.ToUpper())))
+                return true;
+        }
+        catch { }
+        if (RemoveAccents(orderOwner.Surname.ToUpper()).Contains(RemoveAccents(findOrder.ToUpper())))
+            return true;
+        return false;
+    }
+    string RemoveAccents(string text)
+    {
+        StringBuilder sbReturn = new StringBuilder();
+        var arrayText = text.Normalize(NormalizationForm.FormD).ToCharArray();
+        foreach (char letter in arrayText)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(letter) != UnicodeCategory.NonSpacingMark)
+                sbReturn.Append(letter);
+        }
+        return sbReturn.ToString();
+    }
+
+    protected async Task DownloadFile()
+    {
+        if (await IJS.InvokeAsync<bool>("confirm", $"Chcete sťiahnuť dáta ?"))
+        {
+            StateHasChanged();
+            var response = await Http.GetAsync("/api/files/DownloadExcel/" + dateFrom.Date.ToString("dd.MM.yyyy") + "to" + dateTo.Date.ToString("dd.MM.yyyy"));
+            response.EnsureSuccessStatusCode();
+            var fileBytes = await response.Content.ReadAsByteArrayAsync();
+            var fileName = $"Objednávky-report.xlsx";
+            await IJS.InvokeAsync<object>("saveAsFile", fileName, Convert.ToBase64String(fileBytes));
+        }
+    }
+
+    protected async Task DeleteOrder(int id)
+    {
+        if (await IJS.InvokeAsync<bool>("confirm", $"Naozaj chcete odstrániť zákazku ?"))
+        {
+            await Http.DeleteAsync("api/Orders/" + id);
+            NavigationManager.NavigateTo("orderInfoes", forceLoad: true);
+        }
+    }
+
+    protected async Task SetPaid(Order _order)
+    {
+        _order.Paid = !_order.Paid;
+        await Http.PutJsonAsync("api/Orders/" + _order.OrderId, _order); 
+
+    }
+}
+

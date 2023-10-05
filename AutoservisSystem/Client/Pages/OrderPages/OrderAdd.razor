@@ -1,0 +1,368 @@
+﻿@page "/orderAdd"
+@using AutoservisSystem.Shared
+@using AutoservisSystem.Shared.Models
+@using AutoservisSystem.Client.Pages.CustomersPages
+@using AutoservisSystem.Client.Pages.CarPages
+@using System.Text
+@using System.Globalization
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<h2>Nová zákazka</h2>
+<hr />
+<form>
+    <div class="row" style="max-width:800px; min-width:500px;">
+        <div class="col-md-8">
+            <div class="form-group" style="max-width:800px; min-width:500px;">
+                <div>
+                    @if(!newCustomer)
+                    {
+                        <button class="btn btn-primary" type="button" @onclick="ChangeNewCustomer">Nový zákazník</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary" type="button" @onclick="ChangeNewCustomer">Existujúci zákazník</button>
+                    }
+                </div>
+                <br />
+                <label for="CustomerID" class="control-label">Majiteľ</label>
+                @if (!newCustomer)
+                {
+                <div class="input-group">
+                    <div class="form-outline">
+                        <input type="search" id="form1" class="form-control" placeholder="Zadajte meno" @onchange="@((ChangeEventArgs __e) => findCustomer = __e.Value.ToString())" value="@findCustomer" />
+                    </div>
+                </div>
+                <br />
+                <div>
+                    <select name="number" class="form-control selectpicker" @bind="customerId">
+                        <option value="0">Vyberte zakazníka</option>
+                        @if (customers != null)
+                        {
+                            FindCustomers();
+                            @foreach (Customer customer in selectedCustomers)
+                            {
+                                <option value="@customer.CustomerId">@MergeCustomerInfo(customer)</option>}}
+                    </select>
+                    @if (customerId == 0)
+                    {
+                        <div data-bn-type="text" class="validation-message">
+                            Je potrebné vybrať majiteľa
+                        </div>
+                    }
+                </div>
+                }
+                else
+                {
+                    <CustomerAdd @ref="addingCustomer" NewCustomer="@newCustomer"></CustomerAdd>
+                }
+            </div>
+            <hr />
+            <div class="form-group">
+                <div>
+                    @if (!newCustomer)
+                    {
+                        @if(!newCar)
+                        {
+                            <button class="btn btn-primary" type="button" @onclick="ChangeNewCar">Nové auto</button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-primary" type="button" @onclick="ChangeNewCar">Existujúce auto</button>
+                        }
+                    }
+                </div>
+                <br />
+                <label for="CarID" class="control-label">Auto</label>
+                @if(newCustomer || (!newCustomer && newCar))
+                {
+                    <CarAdd @ref="addingCar" NewCar="@newCar"></CarAdd>
+                }
+                else if(!newCar)
+                { 
+                    <select name="number" class="form-control selectpicker" @bind="carId">
+                    @if (orderOwner.CustomerId != customerId)
+                    {
+                        <option value="0" selected="selected">Vyberte auto</option>
+                        carId = 0;
+                    }
+                    else
+                    {
+                        <option value="0">Vyberte auto</option>
+                    }
+                    @if (customers != null)
+                    {
+                        @if (customerId != 0)
+                        {
+                            @foreach (Car car in SelectCustomer(customerId).Cars)
+                            {
+                    <option value="@car.CarId">@car.CarEvidenceNumber @car.Brand @car.ModelType</option>
+                            }
+                        }
+                     }
+                     </select>
+                    @if (carId == 0)
+                    {
+                        <div data-bn-type="text" class="validation-message">Je potrebné vybrať auto</div>
+                    }
+                    @if (notCarSelected)
+                    {
+                        <div data-bn-type="text" class="validation-message">Vyberte auto majiteľa</div>
+                    }
+                }
+            </div>
+            <div class="form-group">
+                <label for="Description" class="control-label">Úlohy</label>
+                @if (order != null)
+                {
+                    @foreach (WorkTask tmpTask in tasks)
+                    {
+                        <div class="input-group mb-3">
+                            <input form="Description" class="form-control" @bind="tmpTask.Description" />
+                            <div class="input-group-append">
+                                <button class="btn btn-danger" type="button" @onclick="(() => RemoveTask(tmpTask))">Odstrániť</button>
+                            </div>
+                        </div>
+                        <br />
+                     }
+                }
+                <input form="Description" class="form-control" @bind="taskDescription" />
+                <br />
+                <button class="btn btn-primary" @onclick="(() => AddTask())" type="button">Pridať úlohu</button>
+            </div>
+            <div class="form-group">
+                <label for="Kilometres" class="control-label">Kilometre</label>
+                <input form="Kilometres" class="form-control" @bind="order.Kilometres" />
+            </div>
+            <div class="row" style="margin: 1px;">
+                <div class="form-group">
+                    <input type="button" class="btn btn-success" @onclick="@CreateOrder" value="Uložiť" />
+                    <input type="button" class="btn btn-danger" @onclick="@Cancel" value="Zrušiť" />
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+@code {
+    private string findCustomer = null;
+    Order order = new Order();
+    Customer orderOwner = new Customer();
+    List<WorkTask> tasks = new List<WorkTask>();
+    string taskDescription;
+
+
+    private CustomerAdd addingCustomer;
+    private CarAdd addingCar;
+
+    bool newCustomer = false;
+    bool newCar = false;
+
+
+    bool notCarSelected = false;
+    int customerId = 0;
+    int carId = 0;
+    List<Customer> customers = new List<Customer>();
+    List<Customer> selectedCustomers = new List<Customer>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private void CallLoadData()
+    {
+        Task.Run(async () =>
+        {
+            await LoadData();
+        });
+    }
+
+    protected async Task LoadData()
+    {
+        customers = await Http.GetFromJsonAsync<List<Customer>>("api/Customers");
+        StateHasChanged();
+    }
+
+
+    public void Dispose()
+    {
+
+    }
+
+    //zoskupi info o zakaznikovi
+    string MergeCustomerInfo(Customer customer)
+    {
+        try
+        {
+            return customer.Surname + " " + customer.Name + ", " + customer.MobileNumber;
+        }
+        catch
+        {
+            return customer.Surname + ", " + customer.MobileNumber;
+        }
+    }
+
+    private Customer SelectCustomer(int customerId)
+    {
+        orderOwner = customers.Where(c => c.CustomerId == customerId).FirstOrDefault();
+        return orderOwner;
+    }
+
+    //vytvorit zakazku
+    public async Task CreateOrder()
+    {
+        Car actualCar = null;
+        if (!newCustomer)
+        {
+            SelectCustomer(customerId);
+            if (newCar)
+            {
+                await addingCar.CreateCar(orderOwner);
+                actualCar = await Http.GetFromJsonAsync<Car>("api/Cars/last");
+                notCarSelected = false;
+            }
+            else
+            {
+                if (orderOwner != null)
+                {
+                    notCarSelected = true;
+                    foreach (Car car in orderOwner.Cars)
+                    {
+                        if (car.CarId == carId)
+                        {
+                            notCarSelected = false;
+                            actualCar = car;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            await addingCustomer.CreateCustomer();
+            orderOwner = await Http.GetFromJsonAsync<Customer>("api/Customers/last");
+            await addingCar.CreateCar(orderOwner);
+            actualCar = await Http.GetFromJsonAsync<Car>("api/Cars/last");
+            notCarSelected = false;
+        }
+
+        if (orderOwner != null && actualCar != null && !notCarSelected && order.Kilometres != 0)
+        {
+            order.CustomerId = orderOwner.CustomerId;
+            order.ReceivedDate = DateTime.Today;
+            order.EmployeeId = 1;
+            order.CarEvidenceNumber = orderOwner.Cars.Where(c => c.CarId == carId).FirstOrDefault().CarEvidenceNumber;
+            if (taskDescription != null && taskDescription != String.Empty)
+                AddTask();
+
+            order.DoneDate = new DateTime();
+            order.Tasks = tasks;
+            if (order.Tasks.Count == 0)
+            {
+                NavigationManager.NavigateTo("orderAdd");
+            }
+            else
+            {
+                await Http.PostJsonAsync("api/Orders", order);
+                NavigationManager.NavigateTo("orderInfoes");
+            }
+        }
+        else
+        {
+            NavigationManager.NavigateTo("orderAdd");
+        }
+    }
+    void Cancel()
+    {
+        NavigationManager.NavigateTo("orderInfoes");
+    }
+
+    void AddTask()
+    {
+        if (taskDescription != null && taskDescription != String.Empty)
+        {
+            WorkTask tmpTask = new WorkTask();
+            tmpTask.Description = taskDescription;
+            tasks.Add(tmpTask);
+            if (taskDescription.ToUpper().Contains("PREHLIADKA"))
+                ControlTask();
+            taskDescription = null;
+        }
+        NavigationManager.NavigateTo("orderAdd");
+    }
+
+    void ControlTask()
+    {
+        WorkTask tmpTask = new WorkTask();
+        tmpTask.Description = "Vymeniť olej a filtre";
+        tasks.Add(tmpTask);
+
+        tmpTask = new WorkTask();
+        tmpTask.Description = "Pozrieť brzdovú a chladiacu kvapalinu";
+        tasks.Add(tmpTask);
+
+        tmpTask = new WorkTask();
+        tmpTask.Description = "Pozrieť podvozok";
+        tasks.Add(tmpTask);
+
+        tmpTask = new WorkTask();
+        tmpTask.Description = "Dofúkať kolesá";
+        tasks.Add(tmpTask);
+
+        tmpTask = new WorkTask();
+        tmpTask.Description = "Skontrolovať remene";
+        tasks.Add(tmpTask);
+
+        tmpTask = new WorkTask();
+        tmpTask.Description = "Dofúkať rezervu";
+        tasks.Add(tmpTask);
+    }
+
+    void RemoveTask(WorkTask taskToRemove)
+    {
+        tasks.Remove(taskToRemove);
+    }
+
+    void ChangeNewCustomer()
+    {
+        if (newCar && newCustomer)
+        {
+            newCar = false;
+        }
+        else if (!newCar && !newCustomer)
+        {
+            newCar = true;
+        }
+        newCustomer = !newCustomer;
+    }
+
+    void ChangeNewCar()
+    {
+        newCar = !newCar;
+    }
+
+    void FindCustomers()
+    {
+        if (findCustomer != null && findCustomer != String.Empty)
+            selectedCustomers = customers.Where(c => RemoveAccents(c.Surname.ToLower()).Contains(RemoveAccents(findCustomer.ToLower()))).ToList();
+        else
+            selectedCustomers = customers;
+    }
+
+    string RemoveAccents(string text)
+    {
+        StringBuilder sbReturn = new StringBuilder();
+        var arrayText = text.Normalize(NormalizationForm.FormD).ToCharArray();
+        foreach (char letter in arrayText)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(letter) != UnicodeCategory.NonSpacingMark)
+                sbReturn.Append(letter);
+        }
+        return sbReturn.ToString();
+    }
+
+
+}

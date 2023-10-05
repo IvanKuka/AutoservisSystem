@@ -1,0 +1,213 @@
+﻿@page "/carInfoes"
+@using AutoservisSystem.Shared.Models
+@using AutoservisSystem.Shared
+@using System.Linq
+@using System
+@using System.Text
+@using System.Globalization
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime IJS
+
+<h2>Prehľad áut</h2>
+<hr />
+<div class="input-group">
+    <div class="form-outline">
+        <input type="search" id="form1" class="form-control" placeholder="Zadajte meno" @onchange="@((ChangeEventArgs __e) => findCar = __e.Value.ToString())" value="@findCar" />
+    </div>
+</div>
+<br />
+@if (cars == null)
+{
+    <p>Načitavanie</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>EČV</th>
+                <th>Majiteľ</th>
+                <th>VIN</th>
+                <th>Značka</th>
+                <th>Model</th>
+                <th></th>
+                <th></th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var car in cars)
+            {
+                @if (SearchingCars(car))
+                {
+                    <tr>
+                        <td>@car.CarEvidenceNumber</td>
+                        <td>
+                            @SelectCustomer(car)
+                        </td>
+                        <td>@car.VIN</td>
+                        <td>@car.Brand</td>
+                        <td>@car.ModelType</td>
+                        <td>
+                            <div class="col-sm-4">
+                                <button class="btn btn-primary" @onclick="(() => ViewMoreInfoCar(car))">
+                                    Viac
+                                </button>
+                            </div>
+                        </td>
+                        <td>
+                            <a class="btn btn-primary" href="/carEdit/@car.CarId">Upraviť</a>
+                            
+                        </td>
+                        <td>
+                            <button class="btn btn-danger" type="button" @onclick="(async () => await DeleteCar(car.CarId))">Odstrániť</button>
+                        </td>
+                    </tr>
+                    @foreach (int tmp in carMoreInfoes.Keys)
+                    {
+                        @if (tmp == car.CarId)
+                        {
+                            { Collapsed = carMoreInfoes[tmp]; }
+                            <tr>
+                                <td colspan="8">
+                                    <CarMoreInfoes Collapsed="@Collapsed" Car="@car"></CarMoreInfoes>
+                                </td>
+                            </tr>
+                        }
+                    }
+                }
+
+            }
+        </tbody>
+    </table>
+
+}
+
+@code {
+    string customerName;
+    Customer[] customers;
+    Car[] cars;
+    private bool Collapsed = true;
+    private Dictionary<int, bool> carMoreInfoes = new Dictionary<int, bool>();
+    string findCar;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private void CallLoadData()
+    {
+        Task.Run(async () =>
+        {
+            await LoadData();
+        });
+    }
+
+    protected async Task LoadData()
+    {
+        customers = await Http.GetFromJsonAsync<Customer[]>("api/Customers");
+        cars = await Http.GetFromJsonAsync<Car[]>("api/Cars");
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        
+    }
+
+    //najdenie majitela auta
+    string SelectCustomer(Car car)
+    {
+        var customer = customers.Where(c => c.CustomerId == car.CustomerId).FirstOrDefault();
+        return customerName = customer.Name + " " + customer.Surname;
+    }
+    //zobrazenie viac info auta
+    void ViewMoreInfoCar(Car car)
+    {
+        foreach (int tmp in carMoreInfoes.Keys)
+        {
+            if (tmp == car.CarId)
+            {
+                if (carMoreInfoes[tmp])
+                {
+                    carMoreInfoes[tmp] = false;
+                }
+                else
+                {
+                    carMoreInfoes[tmp] = true;
+                }
+                return;
+            }
+        }
+        carMoreInfoes.Add(car.CarId, false);
+    }
+
+    //vyhladavanie podla zadaneho vyrazu
+    bool SearchingCars(Car car)
+    {
+        if (findCar == null)
+            return true;
+        if (findCar == String.Empty)
+            return true;
+        if (RemoveAccents(car.CarEvidenceNumber).Contains(RemoveAccents(findCar.ToUpper())))
+            return true;
+        try
+        {
+            if (RemoveAccents(car.VIN).Contains(RemoveAccents(findCar.ToUpper())))
+                return true;
+        }
+        catch { }
+        try
+        {
+            if (RemoveAccents(car.EngineNumber).Contains(RemoveAccents(findCar.ToUpper())))
+                return true;
+        }
+        catch { }
+        try
+        {
+            if (RemoveAccents(car.Brand).Contains(RemoveAccents(findCar.ToUpper())))
+                return true;
+        }
+        catch { }
+        try
+        {
+            if (RemoveAccents(car.ModelType).Contains(RemoveAccents(findCar.ToUpper())))
+                return true;
+        }
+        catch { }
+        var carOwner = customers.Where(c => c.CustomerId == car.CustomerId).FirstOrDefault();
+        try
+        {
+            if (RemoveAccents(carOwner.Name.ToUpper()).Contains(RemoveAccents(findCar.ToUpper())))
+                return true;
+        }
+        catch { }
+        if (RemoveAccents(carOwner.Surname.ToUpper()).Contains(RemoveAccents(findCar.ToUpper())))
+            return true;
+        return false;
+    }
+    string RemoveAccents(string text)
+    {
+        StringBuilder sbReturn = new StringBuilder();
+        var arrayText = text.Normalize(NormalizationForm.FormD).ToCharArray();
+        foreach (char letter in arrayText)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(letter) != UnicodeCategory.NonSpacingMark)
+                sbReturn.Append(letter);
+        }
+        return sbReturn.ToString();
+    }
+
+    protected async Task DeleteCar(int id)
+    {
+        if (await IJS.InvokeAsync<bool>("confirm", $"Naozaj chcete odstrániť auto ?"))
+        {
+            await Http.DeleteAsync("api/Cars/" + id);
+            NavigationManager.NavigateTo("carInfoes");
+        }
+    }
+}

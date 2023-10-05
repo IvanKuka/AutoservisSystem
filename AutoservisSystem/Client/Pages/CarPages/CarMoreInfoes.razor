@@ -1,0 +1,54 @@
+﻿@using AutoservisSystem.Shared.Models
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<div class="panel @(Collapsed ? "collapse": "" ) ">
+    @if (Car != null)
+    {
+        <div class="panel-body" style="padding-top: 15px;">
+            <div class="container-fluid">
+                <div class="row col-lg-16">
+                    @if (Car.EngineNumber != null)
+                    { <div class="col-md-2 col-lg-3"><b>Číslo motora:</b> @Car.EngineNumber</div>}
+                    else
+                    {<div class="col-md-2 col-lg-2"><b>Číslo motora:</b> -</div> }
+
+                    @if (Car.EngigePowerInKW != 0)
+                    { <div class="col-md-1 col-sm-1 col-lg-1"><b>Výkon(kW):</b>@Car.EngigePowerInKW</div> }
+                    else 
+                    {<div class="col-md-1 col-lg-1"><b>Výkon:</b> -</div> }
+
+                    @if(Car.EngineVolume != 0) 
+                    {<div class="col-md-2 col-sm-3 col-lg-2"><b>Objem(cm<sup>3</sup>):</b> @Car.EngineVolume</div> }
+                    else 
+                    {<div class="col-md-2 col-lg-1"><b>Objem:</b> -</div> }
+                
+                    @if(Car.YearOfProduction != 0)
+                    { <div class="col-md-2 col-lg-2"><b>Rok výroby:</b> @Car.YearOfProduction</div>}
+                    else 
+                    {<div class="col-md-2 col-lg-2"><b>Rok výroby:</b> -</div> }
+
+                    @if (!Car.LastOilChange.Date.ToString("dd.MM.yyyy").Equals("01.01.0001")) 
+                    {<div class="col-md-2 col-lg-2"><b>Výmena oleja:</b> @Car.LastOilChange.ToString("dd.MM.yyyy")</div> }
+                    else 
+                    {<div class="col-md-2 col-lg-2"><b>Výmena oleja:</b> -</div> }
+
+                    @if (!Car.LastSTK.Date.ToString("dd.MM.yyyy").Equals("01.01.0001")) 
+                    {<div class="col-md-2 col-lg-2"><b>STK výkonaná:</b> @Car.LastSTK.ToString("dd.MM.yyyy")</div> }
+                    else 
+                    {<div class="col-md-2 col-lg-2"><b>STK výkonaná:</b> -</div> }
+                </div>
+            </div>
+        </div>
+        <br />
+    }
+
+</div>
+
+@code {
+    [Parameter]
+    public bool Collapsed { get; set; } = true; // hide by default
+    [Parameter]
+    public Car Car { get; set; }
+}

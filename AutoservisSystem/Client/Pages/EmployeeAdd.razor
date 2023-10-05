@@ -1,0 +1,120 @@
+﻿@page "/employeeAdd"
+@using AutoservisSystem.Shared.Models
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime IJS
+
+
+<h2>Nový zamestnanec</h2>
+<hr />
+<form>
+    <div class="row">
+        <div class="col-md-4">
+            @if (employees != null || employees.Count != 0)
+            {
+                foreach (var item in employees)
+                {
+                    @if(item.EmployeeId != 1)
+                    {
+                        <div class="form-group">
+                            <label for="Name" class="control-label">@item.Name - </label>
+                            <label for="Hours" class="control-label" >@Math.Round(item.Hours,2) h za @(DateTime.Now.Month). mesiac</label>
+                            <button class="btn btn-danger" type="button" style="float:right;" @onclick="@(async () => await DeleteEmployee(item.EmployeeId))">Odstrániť</button>
+                        </div>
+                    }
+                }
+            }
+            <div class="form-group">
+                <label for="Name" class="control-label">Meno</label>
+                <input form="Name" class="form-control" @bind="employee.Name" />
+            </div>
+
+
+            <div class="form-group">
+                <input type="button" class="btn btn-success" @onclick="@CreateEmployee" value="Uložiť" />
+                <input type="button" class="btn btn-danger" @onclick="@Cancel" value="Zrušiť" />
+            </div>
+        </div>
+    </div>
+</form>
+
+@code {
+
+    Employee employee = new Employee();
+
+    List<Employee> employees = new List<Employee>();
+
+
+    //Pripojenie hubu pre komunikaciu cez signalR
+    protected override async Task OnInitializedAsync()
+    {
+       
+        await LoadData();
+    }
+
+    private void CallLoadData()
+    {
+        Task.Run(async () =>
+        {
+            await LoadData();
+        });
+    }
+
+    protected async Task LoadData()
+    {
+        employees = await Http.GetFromJsonAsync<List<Employee>>("api/Employees");
+        StateHasChanged();
+    }
+
+
+    public void Dispose()
+    {
+        
+    }
+
+    //Vytvorenie zakaznika -- aj overovanie spravnosti formatu emailu a tel. cisla
+    public async Task CreateEmployee()
+    {
+
+        if (employee.Name != null)
+        {
+            employee.Hours = 0;
+            ModifyName(employee);
+            await Http.PostJsonAsync("api/Employees", employee);
+            NavigationManager.NavigateTo("employeeAdd");
+        }
+        else
+        {
+            NavigationManager.NavigateTo("employeeAdd");
+        }
+
+    }
+    public async Task DeleteEmployee(int id)
+    {
+        if (await IJS.InvokeAsync<bool>("confirm", $"Naozaj chcete odstrániť zamestnanca ?"))
+        {
+            await Http.DeleteAsync("api/Employees/" + id);
+            await LoadData();
+            NavigationManager.NavigateTo("employeeAdd");
+        }
+    }
+
+    //Zrusenie vytvarania zakaznika a navrat do vseobecnych info
+    void Cancel()
+    {
+        NavigationManager.NavigateTo("customerInfoes");
+    }
+
+    //uprava mena (male velke pismena)
+    void ModifyName(Employee _employee)
+    {
+        if(_employee.Name != null && _employee.Name != String.Empty)
+        {
+            _employee.Name = char.ToUpper(_employee.Name[0]) + _employee.Name.Substring(1).ToLower();
+        }
+    }
+
+
+}
+

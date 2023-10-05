@@ -1,0 +1,114 @@
+﻿@page "/DashBoard"
+@using AutoservisSystem.Shared.Models
+@using AutoservisSystem.Shared
+@using AutoservisSystem.Client.Pages.OrderPages
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+@if (orders != null && cars != null)
+{
+<table class="table">
+    <thead class="dashboad">
+        <tr>
+            <th>Značka</th>
+            <th>Model</th>
+            <th>EČV</th>
+            <th>Dátum prijatia</th>
+            <th>Hlavná úloha</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody class="dashboad">
+        @foreach (Order order in orders)
+        {
+            SelectCar(order);
+            <tr>
+                <td>@actualCar.Brand</td>
+                <td>@actualCar.ModelType</td>
+                <td>@actualCar.CarEvidenceNumber</td>
+                <td>@order.ReceivedDate.ToString("dd.MM.yyyy")</td>
+                <td>@order.Tasks.First().Description</td>
+                <td>
+                    <div class="col-sm-4">
+                        <button class="btn btn-primary" @onclick="(() => ViewMoreInfoOrder(order))">
+                            Viac
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            @foreach (int tmp in orderMoreInfoes.Keys)
+                    {
+                        @if (tmp == order.OrderId)
+                        {
+                            { Collapsed = orderMoreInfoes[tmp]; }
+                            <tr>
+                                <td colspan="7">
+                                    <OrderMoreInfoes Car="actualCar" Dashboad="true" Collapsed="@Collapsed" Order="@order"></OrderMoreInfoes>
+                                </td>
+                            </tr>
+                        }
+                    }
+
+        }
+    </tbody>
+</table>
+}
+@code {
+    List<Order> orders = new List<Order>();
+    List<Car> cars = new List<Car>();
+    List<Customer> customers = new List<Customer>();
+    Car actualCar = new Car();
+
+    private Dictionary<int, bool> orderMoreInfoes = new Dictionary<int, bool>();
+    private bool Collapsed = true;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private void CallLoadData()
+    {
+        Task.Run(async () =>
+        {
+            await LoadData();
+        });
+    }
+
+    protected async Task LoadData()
+    {
+        orders = await Http.GetJsonAsync<List<Order>>("api/Orders/notDone");
+        cars = await Http.GetJsonAsync<List<Car>>("api/Cars/notDone");
+        StateHasChanged();
+    }
+    void SelectCar(Order actualOrder)
+    {
+        actualCar = cars.Where(c => c.CarEvidenceNumber == actualOrder.CarEvidenceNumber).FirstOrDefault();
+    }
+
+    public void Dispose()
+    {
+        
+    }
+    void ViewMoreInfoOrder(Order order)
+    {
+        foreach (int tmp in orderMoreInfoes.Keys)
+        {
+            if (tmp == order.OrderId)
+            {
+                if (orderMoreInfoes[tmp])
+                {
+                    orderMoreInfoes[tmp] = false;
+                }
+                else
+                {
+                    orderMoreInfoes[tmp] = true;
+                }
+                return;
+            }
+        }
+        orderMoreInfoes.Add(order.OrderId, false);
+    }
+}

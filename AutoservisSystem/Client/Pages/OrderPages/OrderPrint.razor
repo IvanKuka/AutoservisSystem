@@ -1,0 +1,233 @@
+﻿@layout BlankLayout
+@page "/OrderPrint/{OrderId}/{CustomerId}"
+
+@using AutoservisSystem.Shared.Models
+@using AutoservisSystem.Shared
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+
+
+@if (customer == null || order == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div>
+        <input type="button" class="btn btn-primary" id="printPageButton" onclick="window.print()" value="Tlačiť" />
+    </div>
+    <div>
+        <div>
+            <img src="/Images/logo.jpg" asp-append-version="true" class="center" />
+        </div>
+        <hr />
+        <div class="header">
+            <div class="header-left" style="margin: 35px;">
+                <h1><b>Zákazkový list</b></h1>
+            </div>
+            <div class="header-right">
+                <div>
+                    <b>Číslo zákazky:</b> @order.OrderId
+                </div>
+                <div>
+                    @if (order.InvoiceNumber == 0)
+                    {
+                        <b>Číslo faktúry: -</b>
+                    }
+                    else
+                    {
+                        <b>Číslo faktúry: </b>@order.InvoiceNumber
+                    }
+                </div>
+                <div>
+                    <b>Prijatá dňa:</b> @order.ReceivedDate.Date.ToString("dd.MM.yyyy")
+                </div>
+
+            </div>
+        </div>
+        <hr />
+        <div class="body-info">
+            <div class="body-left">
+                <div class="div-name">
+                    <b>Zákazník:</b>
+                </div>
+                <div class="body-info-customer">
+                    @customer.Surname @customer.Name, <b>EČV: </b>@order.CarEvidenceNumber, <b>Počet kilometrov: </b>@order.Kilometres km
+                </div>
+            </div>
+        </div>
+        <hr />
+        <div class="body-info">
+            <div class="body-left">
+                <div class="div-name">
+                    <b>Úlohy: </b>
+                </div>
+                <div class="row col-sm-10 body-info-tasks">
+                    @if (order.Tasks != null)
+                    {
+                        @foreach (var task in order.Tasks)
+                        {
+                            @if (task == order.Tasks.Last())
+                                @task.Description
+                            else
+                                    @(task.Description + ", ");
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+        <br />
+        <div>
+            <table class="table" style="font-size:22px;">
+                <thead>
+                    <tr>
+                        <th>Názov</th>
+                        <th>Počet kusov</th>
+                        <th>cena za jednotku v €</th>
+                        <th>Spolu v €</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (parts != null && order.OrdersParts != null)
+                    {
+                        SortParts();
+                        @if (sortedParts != null)
+                        {
+                            @foreach (var part in sortedParts.Keys)
+                            {
+                                var ordersPart = order.OrdersParts.Where(o => o.OrdersPartId == part).FirstOrDefault();
+                                <tr>
+                                    <td>@sortedParts[part].Name</td>
+                                    <td>@ordersPart.Pieces</td>
+                                    <td>@ordersPart.Price €</td>
+                                    <td>@(ordersPart.Pieces * ordersPart.Price) €</td>
+                                </tr>
+                            }
+                        }
+                    }
+                    <tr>
+                        <td>Práca</td>
+                        <td>@order.Hours</td>
+                        <td>@isVan() €</td>
+                        <td>@(isVan() * order.Hours) €</td>
+
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td>
+                            <b>Súčet:</b> @((double)System.Math.Round(order.Price, 2)) €
+                            <br />
+                            <b>DPH: </b> @((double)System.Math.Round(order.Price*0.2, 2)) €
+                            <br />
+                            <b>Súčet s DPH: </b>@((double)System.Math.Round(order.Price + (order.Price*0.2), 2)) €
+                        </td>
+                    </tr>
+
+                </tbody>
+            </table>
+        </div>
+        <br />
+        <br />
+        <br />
+        <div style="overflow:auto">
+            @if (!order.DoneDate.Date.ToString("dd.MM.yyyy").Equals("01.01.0001"))
+            {
+                <div style="float: left; font-size:22px;">
+                    <b>Dátum dokončenia:</b> @order.DoneDate.Date.ToString("dd.MM.yyyy")
+                </div>
+            }
+            else
+            {
+                <div style="float:left; font-size:22px;">
+                    <b>Dátum dokončenia:</b> -
+                </div>
+            }
+            <div style="float:right; margin-right: 150px; font-size:22px;">
+                <b>Odovzdal:</b> ................
+            </div>
+        </div>
+        <div style="overflow:auto">
+            <div style="float:left; font-size:22px;">
+                <b>Prebral:</b> ................
+            </div>
+        </div>
+    </div>
+    <br />
+
+}
+@code {
+    [Parameter]
+    public string OrderId { get; set; }
+    [Parameter]
+    public string CustomerId { get; set; }
+
+
+    Customer customer = new Customer();
+    Order order = new Order();
+    List<Part> parts = new List<Part>();
+    Dictionary<int, Part> sortedParts = new Dictionary<int, Part>();
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private void CallLoadData()
+    {
+        Task.Run(async () =>
+        {
+            await LoadData();
+        });
+    }
+
+    protected async Task LoadData()
+    {
+        customer = await Http.GetFromJsonAsync<Customer>("api/Customers/" + CustomerId);
+        order = await Http.GetFromJsonAsync<Order>("api/Orders/" + OrderId);
+        if (order.OrdersParts != null)
+        {
+            foreach (var orderPart in order.OrdersParts)
+            {
+                parts.Add(await Http.GetFromJsonAsync<Part>("api/Parts/" + orderPart.PartId));
+            }
+        }
+        StateHasChanged();
+
+    }
+
+    void SortParts()
+    {
+        foreach (var ordersPart in order.OrdersParts)
+        {
+            var part = parts.Where(p => p.PartId == ordersPart.PartId).FirstOrDefault();
+            if(!sortedParts.ContainsKey(ordersPart.OrdersPartId))
+                sortedParts.Add(ordersPart.OrdersPartId, part);
+        }
+    }
+
+    public void Dispose()
+    {
+        
+    }
+    double isVan()
+    {
+        if (customer.Cars != null)
+        {
+            var car = customer.Cars.Where(c => c.CarEvidenceNumber == order.CarEvidenceNumber).FirstOrDefault();
+            if (car != null && car.Van)
+            {
+                return 28;
+            }
+            else
+            {
+                return 25;
+            }
+        }
+        return 0;
+    }
+}
+

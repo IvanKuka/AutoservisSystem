@@ -1,0 +1,238 @@
+﻿@page "/customerAdd"
+@using AutoservisSystem.Shared.Models
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+@if(!NewCustomer)
+{
+    <h2>Nový zákazník</h2>
+<hr />
+}
+<form>
+    <div class="row">
+        <div class="col-md-8">
+            @if (!NewCustomer)
+            {
+                <div class="row" style="margin: 1px;">
+                    <div class="form-group">
+                        @if (Company)
+                        { <input type="button" class="btn btn-primary" @onclick="@TypeOfCustomer" value="Fyzická osoba" />}
+                        else
+                        {<input type="button" class="btn btn-primary" @onclick="@TypeOfCustomer" value="Firma" /> }
+                    </div>
+                </div>
+                @if (!Company)
+                {
+                    <div class="form-group">
+                        <label for="Name" class="control-label">Meno</label>
+                        <input form="Name" class="form-control" @bind="customer.Name" />
+                    </div>
+                    <div class="form-group">
+                        <label for="Surname" class="control-label">Priezvisko</label>
+                        <input form="Surname" class="form-control" @bind="customer.Surname" />
+                    </div>
+                }
+                else
+                {
+                    <div class="form-group">
+                        <label for="Surname" class="control-label">Názov firmy</label>
+                        <input form="Surname" class="form-control" @bind="customer.Surname" />
+                    </div>
+                }
+            }
+            else
+            {
+                 <div class="form-group">
+                        <label for="Surname" class="control-label">Názov firmy/Priezvisko</label>
+                        <input form="Surname" class="form-control" @bind="customer.Surname" />
+                </div>
+            }
+            <div class="form-group">
+                @if (isValidPhoneNumber)
+                {
+                    <label for="MobileNumber" class="control-label">Tel. číslo</label>
+                    <input form="MobileNumber" class="form-control" type="tel" @bind="customer.MobileNumber" />
+                    <input type="checkbox" id="foreignNumber" name="foreignNumber" @onclick="@SetForeignNumber">
+                    <label for="foreignNumber" style="padding-left:6px;">Zahraničné číslo</label>
+                }
+                else
+                {
+                    <label for="MobileNumber" class="control-label">Tel. číslo</label>
+                    <input form="MobileNumber" class="form-control" type="tel" @bind="customer.MobileNumber" />
+                    <input type="checkbox" id="foreignNumber" name="foreignNumber" @onclick="@SetForeignNumber">
+                    <label for="foreignNumber" style="padding-left:6px;"> Zahraničné číslo</label>
+                    <div data-bn-type="text" class="validation-message">*Zadajte správne tel. číslo</div>
+                }
+            </div>
+            @if (!NewCustomer)
+            {
+                <div class="form-group">
+                @if (isValidEmail || customer.Email == null || customer.Email == String.Empty)
+                {
+                    <label for="Email" class="control-label">Email</label>
+                    <input form="Email" class="form-control" @bind="customer.Email" />
+                }
+                else
+                {
+                    <label for="Email" class="control-label">Email</label>
+                    <input form="Email" class="form-control" @bind="customer.Email"/>
+                    <div data-bn-type="text" class="validation-message">*Zadajte správnu emailovú adresu</div>
+                }
+                </div>             
+            }
+            @if(!NewCustomer)
+            {
+            <div class="form-group">
+                <input type="button" class="btn btn-success" @onclick="@CreateCustomer" value="Uložiť" />
+                <input type="button" class="btn btn-danger" @onclick="@Cancel" value="Zrušiť" />
+            </div>
+            }
+        </div>
+    </div>
+</form>
+
+@code {
+    [Parameter]
+    public bool NewCustomer { get; set; } = false;
+
+    Customer customer = new Customer();
+    bool isValidEmail = true;
+    bool isValidPhoneNumber = true;
+    bool foreign = false;
+    bool Company = false;
+
+
+    //Pripojenie hubu pre komunikaciu cez signalR
+
+    public void Dispose()
+    {
+        
+    }
+
+    //Vytvorenie zakaznika -- aj overovanie spravnosti formatu emailu a tel. cisla
+    public async Task CreateCustomer()
+    {
+        isValidEmail = IsEmailValid(customer.Email);
+        isValidPhoneNumber = foreign ? isDigit(customer.MobileNumber) : isPhoneNumber(customer.MobileNumber);
+
+        if ((isValidEmail || customer.Email == null) && isValidPhoneNumber && customer.Surname != null)
+        {
+            if(!foreign)
+                customer.MobileNumber = ChangePhoneNumberFormat(customer.MobileNumber);
+            ModifyName(customer);
+            await Http.PostJsonAsync("api/Customers", customer);
+            if(!NewCustomer)
+                NavigationManager.NavigateTo("customerInfoes");
+            else
+                NavigationManager.NavigateTo("orderAdd");
+        }
+        else
+        {
+            if(!NewCustomer)
+                NavigationManager.NavigateTo("customerAdd");
+            else
+                NavigationManager.NavigateTo("orderAdd");
+
+        }
+
+    }
+
+    //Zrusenie vytvarania zakaznika a navrat do vseobecnych info
+    void Cancel()
+    {
+        NavigationManager.NavigateTo("customerInfoes");
+    }
+
+    //Validacia formatu emailu
+    public bool IsEmailValid(string email)
+    {
+        try
+        {
+            var tmpEmail = new System.Net.Mail.MailAddress(email);
+            return tmpEmail.Address == email;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    //validacia tel. cisla ci neobsahuje ine znaky ako cisla
+    bool isDigit(string input)
+    {
+        try
+        {
+            int position = input[0] == '+' ? position = 1 : position = 0;
+
+            for (int i = position; i < input.Length; i++)
+            {
+                if (input[i] < '0' || '9' < input[i])
+                    return false;
+            }
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    //validacia formatu slovenskeho cisla aj so zahranicnou predvolbou
+    bool isPhoneNumber(string number)
+    {
+        try
+        {
+            number = String.Concat(number.Where(c => !Char.IsWhiteSpace(c)));
+            if (number[0] == '+')
+            {
+                return number[1] == '4' && number[2] == '2' && number[3] == '1' && number[4] == '9' && isDigit(number) && number.Length == 13;
+            }
+            else
+            {
+                return number[0] == '0' && number[1] == '9' && isDigit(number) && number.Length == 10;
+            }
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    //uprava formatu slovenseho cisla aby bol prehladnejsi
+    public string ChangePhoneNumberFormat(string number)
+    {
+        number = String.Concat(number.Where(c => !Char.IsWhiteSpace(c)));
+        bool withPrefix = number[0] == '+' ? true : false ;
+
+        number = number.Insert(4," ");
+        number = number.Insert(8," ");
+        if (withPrefix)
+            number = number.Insert(12," ");
+        return number;
+    }
+
+    //uprava mena (male velke pismena)
+    void ModifyName(Customer customer)
+    {
+        if(customer.Name != null && customer.Name != String.Empty)
+        {
+            customer.Name = char.ToUpper(customer.Name[0]) + customer.Name.Substring(1).ToLower();
+        }
+        if (customer.Surname != null && customer.Surname != String.Empty)
+        {
+            customer.Surname = char.ToUpper(customer.Surname[0]) + customer.Surname.Substring(1).ToLower();
+        }
+    }
+
+    //zakrtnutie checkboxu zahranicne cislo
+    void SetForeignNumber()
+    {
+        foreign = foreign ? foreign = false : foreign = true;
+    }
+
+    void TypeOfCustomer()
+    {
+        Company = !Company;
+    }
+}

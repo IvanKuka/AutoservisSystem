@@ -1,0 +1,137 @@
+﻿@page "/partInfoes"
+
+@using AutoservisSystem.Shared.Models
+@using System
+@using System.Text
+@using System.Globalization
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+@if (parts == null)
+{
+<p>Loading...</p> }
+else
+{
+    <div class="input-group">
+        <div class="form-outline">
+            <input type="search" id="form1" class="form-control" placeholder="Hľadať" @onchange="@((ChangeEventArgs __e) => findPart = __e.Value.ToString())" value="@findPart" />
+        </div>
+    </div>
+    <br />
+    <div>
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Názov</th>
+                    <th>Cena za ks</th>
+                    <th>Značka</th>
+                    <th>Dodávateľ</th>
+                    <th>Výrobné číslo</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var part in parts)
+                {
+                    <tr>
+                    @if (SearchPart(part))
+                    {
+                        <td>
+                            @part.Name
+                        </td>
+                        <td>
+                            @part.Price €
+                        </td>
+                        <td>
+                            @part.Brand
+                        </td>
+                        <td>
+                            @part.Supplier
+                        </td>
+                        <td>
+                            @part.PartNumber
+                        </td>
+                        <td>
+                            <a class="btn btn-primary" href="/partEdit/@part.PartId">Upraviť</a>
+                        </td>
+                    }
+                    </tr>
+                }
+
+            </tbody>
+ 
+        </table>
+    </div>
+}
+
+@code {
+    List<Part> parts = new List<Part>();
+
+    private string findPart = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private void CallLoadData()
+    {
+        Task.Run(async () =>
+        {
+            await LoadData();
+        });
+    }
+
+    protected async Task LoadData()
+    {
+        parts = await Http.GetJsonAsync<List<Part>>("api/Parts");
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        
+    }
+    bool SearchPart(Part part)
+    {
+        if (findPart == null)
+            return true;
+        if (findPart == String.Empty)
+            return true;
+        if (part.PartNumber.ToUpper().Contains(findPart.ToUpper()))
+            return true;
+        try
+        {
+            if (RemoveAccents(part.Name.ToLower()).Contains(RemoveAccents(findPart.ToLower())))
+                return true;
+        }
+        catch { }
+        try
+        {
+            if (RemoveAccents(part.Brand.ToLower()).Contains(RemoveAccents(findPart.ToLower())))
+                return true;
+        }
+        catch { }
+        try
+        {
+            if (RemoveAccents(part.Supplier.ToLower()).Contains(RemoveAccents(findPart.ToLower())))
+                return true;
+        }
+        catch { }
+        return false;
+    }
+    string RemoveAccents(string text)
+    {
+        StringBuilder sbReturn = new StringBuilder();
+        var arrayText = text.Normalize(NormalizationForm.FormD).ToCharArray();
+        foreach (char letter in arrayText)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(letter) != UnicodeCategory.NonSpacingMark)
+                sbReturn.Append(letter);
+        }
+        return sbReturn.ToString();
+    } }
+
+

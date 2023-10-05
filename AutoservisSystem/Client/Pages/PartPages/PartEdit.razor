@@ -1,0 +1,85 @@
+﻿@page "/partEdit/{id}"
+@using AutoservisSystem.Shared.Models
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<h2>Upraviť diel</h2>
+<hr />
+@if(part != null)
+{
+    <form>
+    <div class="row">
+        <div class="col-md-8">
+            <div class="form-group">
+                <label for="Name" class="control-label">Názov</label>
+                <input form="Name" class="form-control" @bind="part.Name" />
+            </div>
+            <div class="form-group">
+                <label for="PartNumber" class="control-label">Výrobné číslo</label>
+                <input form="PartNumber" class="form-control" @bind="part.PartNumber" />
+            </div>
+            <div class="form-group">
+                <label for="Price" class="control-label">Cena v €</label>
+                <input form="Price" class="form-control" @bind="part.Price" />
+            </div>
+            <div class="form-group">
+                <label for="Supplier" class="control-label">Dodávateľ</label>
+                <input form="Supplier" class="form-control" @bind="part.Supplier" />
+            </div>
+            <div class="form-group">
+                <label for="Brand" class="control-label">Značka</label>
+                <input form="Brand" class="form-control" @bind="part.Brand" />
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="form-group">
+            <input type="button" class="btn btn-success" @onclick="@UpdatePart" value="Uložiť" />
+            <input type="button" class="btn btn-danger" @onclick="@Cancel" value="Zrušiť" />
+        </div>
+    </div>
+</form>
+}
+
+@code { 
+    [Parameter]
+    public string id { get; set; }
+
+    Part part = new Part();
+
+
+    //pripojenie hubu na komunikaciu cez signalR
+    protected override async Task OnInitializedAsync()
+    {
+        part = await Http.GetJsonAsync<Part>("api/Parts/" + id);
+    }
+
+
+
+    public void Dispose()
+    {
+        
+    }
+
+    //upravenie zakaznika - kontrola emailu a cisla zahrnuta
+    public async Task UpdatePart()
+    {
+        if (part.PartNumber != null && part.Price > 0)
+        {
+            await Http.PutJsonAsync("api/Parts/" + id, part);
+            NavigationManager.NavigateTo("partInfoes");
+        }
+        else
+        {
+            NavigationManager.NavigateTo("customerEdit/" + id);
+        }
+    }
+
+    //zrusenie upravy a navrat do vseob info
+    void Cancel()
+    {
+        NavigationManager.NavigateTo("partInfoes");
+    }
+}
+

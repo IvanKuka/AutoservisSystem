@@ -1,0 +1,214 @@
+﻿@page "/customerEdit/{id}"
+@using AutoservisSystem.Shared.Models
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<h2>Upraviť zákazníka</h2>
+<hr />
+<form>
+    <div class="row">
+        <div class="col-md-8">
+            <div class="form-group">
+                <label for="Name" class="control-label">Meno</label>
+                <input form="Name" class="form-control" @bind="customer.Name" />
+            </div>
+            <div class="form-group">
+                <label for="Surname" class="control-label">Priezvisko</label>
+                <input form="Surname" class="form-control" @bind="customer.Surname" />
+            </div>
+            <div class="form-group">
+                @if (isValidPhoneNumber)
+                {
+                    <label for="MobileNumber" class="control-label">tel. číslo</label>
+                    <input form="MobileNumber" class="form-control" type="tel" @bind="customer.MobileNumber" />
+                    if (foreign)
+                    {
+                        <input type="checkbox" id="foreignNumber" name="foreignNumber" @onclick="@SetForeignNumber" checked>
+                    }
+                    else
+                    {
+                        <input type="checkbox" id="foreignNumber" name="foreignNumber" @onclick="@SetForeignNumber">
+                    }
+                    <label for="foreignNumber" style="padding-left:6px;"> Zahraničné číslo</label>
+                }
+                else
+                {
+                    <label for="MobileNumber" class="control-label">tel. číslo</label>
+                    <input form="MobileNumber" class="form-control" type="tel" @bind="customer.MobileNumber" />
+                    if (foreign)
+                    {
+                        <input type="checkbox" id="foreignNumber" name="foreignNumber" @onclick="@SetForeignNumber" checked>
+                    }
+                    else
+                    {
+                        <input type="checkbox" id="foreignNumber" name="foreignNumber" @onclick="@SetForeignNumber">
+                    }
+                    <label for="foreignNumber" style="padding-left:6px;">Zahraničné číslo</label>
+                    <div data-bn-type="text" class="validation-message">*Zadajte správne tel. číslo</div>
+                }
+            </div>
+            <div class="form-group">
+                @if (isValidEmail)
+                {
+                    <label for="Email" class="control-label">Email</label>
+                    <input form="Email" class="form-control" @bind="customer.Email" />
+                }
+                else
+                {
+                    <label for="Email" class="control-label">Email</label>
+                    <input form="Email" class="form-control" @bind="customer.Email" />
+                    <div data-bn-type="text" class="validation-message">*Zadajte správnu emailovú adresu</div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="form-group">
+            <input type="button" class="btn btn-success" @onclick="@UpdateCustomer" value="Uložiť" />
+            <input type="button" class="btn btn-danger" @onclick="@Cancel" value="Zrušiť" />
+        </div>
+    </div>
+</form>
+
+@code {
+    [Parameter]
+    public string id { get; set; }
+
+    bool isValidEmail = true;
+    bool isValidPhoneNumber = true;
+    bool foreign = false;
+    Customer customer = new Customer();
+
+    //pripojenie hubu na komunikaciu cez signalR
+    protected override async Task OnInitializedAsync()
+    {
+        customer= await Http.GetJsonAsync<Customer>("api/Customers/" + id);
+    }
+
+
+    public void Dispose()
+    {
+        
+    }
+
+    //upravenie zakaznika - kontrola emailu a cisla zahrnuta
+    public async Task UpdateCustomer()
+    {
+        isValidEmail = IsEmailValid(customer.Email);
+        isValidPhoneNumber = foreign ? isDigit(customer.MobileNumber) : isPhoneNumber(customer.MobileNumber);
+        if ((isValidEmail || customer.Email == null) && isValidPhoneNumber && customer.Surname != null)
+        {
+            if (!foreign)
+                customer.MobileNumber = ChangePhoneNumberFormat(customer.MobileNumber);
+            ModifyName(customer);
+            await Http.PutJsonAsync("api/Customers/" + id, customer);
+            NavigationManager.NavigateTo("customerInfoes");
+        }
+        else
+        {
+            NavigationManager.NavigateTo("customerEdit/" + id);
+        }
+    }
+
+    //zrusenie upravy a navrat do vseob info
+    void Cancel()
+    {
+        NavigationManager.NavigateTo("customerInfoes");
+    }
+
+    //validacia emailu
+    public bool IsEmailValid(string email)
+    {
+        try
+        {
+            var tmpEmail = new System.Net.Mail.MailAddress(email);
+            return tmpEmail.Address == email;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    //validacia cisel v stringu
+    public bool isDigit(string input)
+    {
+        try
+        {
+            int position = input[0] == '+' ? position = 1 : position = 0;
+
+            for (int i = position; i < input.Length; i++)
+            {
+                if (input[i] < '0' || '9' < input[i])
+                    return false;
+            }
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    //validacia slovenskeho cisla
+    public bool isPhoneNumber(string number)
+    {
+        try
+        {
+            number = String.Concat(number.Where(c => !Char.IsWhiteSpace(c)));
+            if (number[0] == '+')
+            {
+                return number[1] == '4' && number[2] == '2' && number[3] == '1' && number[4] == '9' && isDigit(number) && number.Length == 13;
+            }
+            else
+            {
+                return number[0] == '0' && number[1] == '9' && isDigit(number) && number.Length == 10;
+            }
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    //zmena formatu pre slovenske cislo
+    public string ChangePhoneNumberFormat(string number)
+    {
+        number = String.Concat(number.Where(c => !Char.IsWhiteSpace(c)));
+        bool foreign = number[0] == '+' ? true : false;
+
+        number = number.Insert(4, " ");
+        number = number.Insert(8, " ");
+        if (foreign)
+            number = number.Insert(12, " ");
+        return number;
+    }
+
+    //nastavenie nie slovenskeho cisla
+    void SetForeignNumber()
+    {
+        foreign = foreign ? foreign = false : foreign = true;
+    }
+    void ModifyName(Customer customer)
+    {
+        if (customer.Name != null && customer.Name != String.Empty)
+        {
+            customer.Name = char.ToUpper(customer.Name[0]) + customer.Name.Substring(1).ToLower();
+        }
+        if (customer.Surname != null && customer.Surname != String.Empty)
+        {
+            customer.Surname = char.ToUpper(customer.Surname[0]) + customer.Surname.Substring(1).ToLower();
+        }
+    }
+
+    //kontrola, ci je cislo zahranicne --- doupravit
+    bool CheckForeign()
+    {
+        if (isPhoneNumber(customer.MobileNumber))
+        {
+            return foreign = false;
+        }
+        return foreign = true;
+    }
+}

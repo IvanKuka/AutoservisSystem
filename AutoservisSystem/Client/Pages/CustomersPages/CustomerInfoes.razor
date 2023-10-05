@@ -1,0 +1,213 @@
+﻿@page "/customerInfoes"
+@using AutoservisSystem.Shared.Models
+@using System
+@using System.Text
+@using System.Globalization
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime IJS
+
+<h2>Prehľad zákazníkov</h2>
+<hr />
+<div class="input-group">
+    <div class="form-outline">
+        <input type="search" id="form1" class="form-control" placeholder="Zadajte meno" @onchange="@((ChangeEventArgs __e) => findCustomer = __e.Value.ToString())" value="@findCustomer" />
+    </div>
+</div>
+<br />
+@if (customers == null)
+{
+    <p>Načitavanie</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Meno</th>
+                <th>Priezvisko</th>
+                <th>Tel. číslo</th>
+                <th>Email</th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var customer in customers)
+            {
+                @if (SearchCustomer(customer))
+                {
+                    <tr>
+                        <td>@customer.Name</td>
+                        <td>@customer.Surname</td>
+                        <td>@customer.MobileNumber</td>
+                        <td>@customer.Email</td>
+                        <td>
+                            <button class="btn btn-primary" @onclick="(() => ViewMoreInfoCars(customer))">Autá</button>
+                        </td>
+                        <td>
+                            <button class="btn btn-primary" @onclick="(() => ViewMoreInfoOrders(customer))">Zákazky</button>
+                        </td>
+                        <td>
+                            <a class="btn btn-primary" href="/customerEdit/@customer.CustomerId">Upraviť</a>
+                            
+                        </td>
+                        <td>
+                            <button class="btn btn-danger" type="button" @onclick="(async () => await DeleteCustomer(customer.CustomerId))">Odstrániť</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        @foreach (int tmp in customerMoreInfoCars.Keys)
+                        {
+                            @if (tmp == customer.CustomerId)
+                            {
+                                { CollapsedCar = customerMoreInfoCars[tmp]; }
+
+                                <td colspan="8">
+                                    <CustomerMoreInfoesCar Collapsed="@CollapsedCar" Customer="@customer"></CustomerMoreInfoesCar>
+                                </td>
+
+                            }
+                        }
+                    </tr>
+                    <tr>
+                        @foreach (int tmp in customerMoreInfoOrders.Keys)
+                        {
+                            @if (tmp == customer.CustomerId)
+                            {
+                                { CollapsedOrder = customerMoreInfoOrders[tmp]; }
+                                <td colspan="8">
+                                    <CustomerMoreInfoesOrders Collapsed="@CollapsedOrder" Customer="@customer"></CustomerMoreInfoesOrders>
+                                </td>
+                            }
+                        }
+                    </tr>
+                }
+
+            }
+        </tbody>
+    </table>
+
+}
+
+@code {
+    Customer[] customers;
+
+    private string findCustomer = null;
+    private bool CollapsedCar = true;
+    private bool CollapsedOrder = true;
+    private Dictionary<int, bool> customerMoreInfoCars = new Dictionary<int, bool>();
+    private Dictionary<int, bool> customerMoreInfoOrders = new Dictionary<int, bool>();
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private void CallLoadData()
+    {
+        Task.Run(async () =>
+        {
+            await LoadData();
+        });
+    }
+
+    protected async Task LoadData()
+    {
+        customers = await Http.GetFromJsonAsync<Customer[]>("api/Customers");
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+
+    }
+
+    //zobrazenie aut konkretneho zakaznika
+    void ViewMoreInfoCars(Customer customer)
+    {
+        foreach (int tmp in customerMoreInfoCars.Keys)
+        {
+            if (tmp == customer.CustomerId)
+            {
+                if (customerMoreInfoCars[tmp])
+                {
+                    customerMoreInfoCars[tmp] = false;
+                }
+                else
+                {
+                    customerMoreInfoCars[tmp] = true;
+                }
+                return;
+            }
+        }
+        customerMoreInfoCars.Add(customer.CustomerId, false);
+    }
+
+    //zobrazenie zakaziek konkretneho zakaznika
+    void ViewMoreInfoOrders(Customer customer)
+    {
+        foreach (int tmp in customerMoreInfoOrders.Keys)
+        {
+            if (tmp == customer.CustomerId)
+            {
+                if (customerMoreInfoOrders[tmp])
+                {
+                    customerMoreInfoOrders[tmp] = false;
+                }
+                else
+                {
+                    customerMoreInfoOrders[tmp] = true;
+                }
+                return;
+            }
+        }
+        customerMoreInfoOrders.Add(customer.CustomerId, false);
+    }
+
+    //vyhladavanie podla vyrazu
+    bool SearchCustomer(Customer customer)
+    {
+        if (findCustomer == null)
+            return true;
+        if (findCustomer == String.Empty)
+            return true;
+        try
+        {
+            if (RemoveAccents(customer.Name.ToLower()).Contains(RemoveAccents(findCustomer.ToLower())))
+                return true;
+        }
+        catch { }
+        if (RemoveAccents(customer.Surname.ToLower()).Contains(RemoveAccents(findCustomer.ToLower())))
+            return true;
+        return false;
+    }
+
+    string RemoveAccents(string text)
+    {
+        StringBuilder sbReturn = new StringBuilder();
+        var arrayText = text.Normalize(NormalizationForm.FormD).ToCharArray();
+        foreach (char letter in arrayText)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(letter) != UnicodeCategory.NonSpacingMark)
+                sbReturn.Append(letter);
+        }
+        return sbReturn.ToString();
+    }
+
+    protected async Task DeleteCustomer(int id)
+    {
+        if (await IJS.InvokeAsync<bool>("confirm", $"Naozaj chcete odstrániť zákazníka spolu so všetkými jeho autami a zákazkami ?"))
+        {
+            if (await IJS.InvokeAsync<bool>("confirm", $"Ste si naozaj istý ?"))
+            {
+                await Http.DeleteAsync("api/Customers/" + id);
+                NavigationManager.NavigateTo("customerInfoes");
+            }
+        }
+    }
+}

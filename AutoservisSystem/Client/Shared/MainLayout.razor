@@ -1,0 +1,40 @@
+﻿@inherits LayoutComponentBase
+
+<div class="page" id="doNotPrint">
+    @if (!hide)
+    {
+    <div class="sidebar" style="min-width:250px;" >
+
+            <NavMenu />
+
+        <ul class="nav flex-column">
+            <li class="nav-item px-3">
+                <div class="nav-button">
+                    <button class="btn hide-panel" type="button" @onclick="HideNav"> Skryť bočný panel</button>
+                </div>
+            </li>
+        </ul>
+    </div>
+    }
+    <div class="main">
+        <div class="top-row px-4">
+            @if (hide)
+            {
+                <div class="nav-button">
+                    <button class="btn btn-primary" type="button" @onclick="HideNav">Zobraziť bočný panel</button>
+                </div>
+            }
+        </div>
+
+        <div class="content px-4">
+            @Body
+        </div>
+    </div>
+</div>
+@code{
+    bool hide = false;
+    void HideNav()
+    {
+        hide = !hide;
+    }
+}
